@@ -36,11 +36,6 @@ Rcpp::newDatetimeVector C_time_update(const Rcpp::NumericVector& dt,
     do_minute = updates.containsElementNamed("minute"),
     do_second = updates.containsElementNamed("second");
 
-  /* bool do_year = !Rf_isNull(updates["year"]), do_month = !Rf_isNull(updates["month"]), */
-  /*   do_yday = !Rf_isNull(updates["yday"]), do_mday = !Rf_isNull(updates["mday"]), */
-  /*   do_wday = !Rf_isNull(updates["wday"]), do_hour = !Rf_isNull(updates["hour"]), */
-  /*   do_minute = !Rf_isNull(updates["minute"]), do_second = !Rf_isNull(updates["second"]); */
-
   const IntegerVector& year = do_year ? updates["year"] : IntegerVector::create(0);
   const IntegerVector& month = do_month ? updates["month"] : IntegerVector::create(0);
   const IntegerVector& yday = do_yday ? updates["yday"] : IntegerVector::create(0);
@@ -101,8 +96,14 @@ Rcpp::newDatetimeVector C_time_update(const Rcpp::NumericVector& dt,
       double dti = loop_dt ? dt[i] : dt[0];
       int_fast64_t secs = floor_to_int64(dti);
 
+
       if (ISNAN(dti) || secs == NA_INT64) {
-        out[i] = NA_REAL;
+        if (dti == R_PosInf)
+          out[i] = R_PosInf;
+        else if (dti == R_NegInf)
+          out[i] = R_NegInf;
+        else
+          out[i] = NA_REAL;
         continue;
       }
 
@@ -115,13 +116,15 @@ Rcpp::newDatetimeVector C_time_update(const Rcpp::NumericVector& dt,
         y = ct1.year(), m = ct1.month(), d = ct1.day(),
         H = ct1.hour(), M = ct1.minute(), S = ct1.second();
 
+      /* Rprintf("dti: %f sec:%ld H:%d M:%d S:%d\n", dti, secs, H, M, S); */
+
       if (do_year) {
         y = loop_year ? year[i] : year[0];
-        if (y == NA_INT32) {out[i] = NA_REAL; continue; }
+        if (y == NA_INT32) { out[i] = NA_REAL; continue; }
       }
       if (do_month) {
         m = loop_month ? month[i] : month[0];
-        if (m == NA_INT32) {out[i] = NA_REAL; continue; }
+        if (m == NA_INT32) { out[i] = NA_REAL; continue; }
       }
 
       if (do_yday) {
@@ -165,11 +168,11 @@ Rcpp::newDatetimeVector C_time_update(const Rcpp::NumericVector& dt,
 
       if (do_hour) {
         H = loop_hour ? hour[i] : hour[0];
-        if (H == NA_INT32) {out[i] = NA_REAL; continue; }
+        if (H == NA_INT32) { out[i] = NA_REAL; continue; }
       }
       if (do_minute) {
         M = loop_minute ? minute[i] : minute[0];
-        if (M == NA_INT32) {out[i] = NA_REAL; continue; }
+        if (M == NA_INT32) { out[i] = NA_REAL; continue; }
       }
       if (do_second) {
         double s = loop_second ? second[i] : second[0];
@@ -206,6 +209,8 @@ Rcpp::newDatetimeVector C_time_add(const Rcpp::NumericVector& dt,
     do_minute = periods.containsElementNamed("minutes"),
     do_second = periods.containsElementNamed("seconds");
 
+  if (dt.size() == 0) return(newDatetimeVector(dt));
+
   const IntegerVector& year = do_year ? periods["years"] : IntegerVector::create(0);
   const IntegerVector& month = do_month ? periods["months"] : IntegerVector::create(0);
   const IntegerVector& week = do_week ? periods["weeks"] : IntegerVector::create(0);
@@ -214,7 +219,6 @@ Rcpp::newDatetimeVector C_time_add(const Rcpp::NumericVector& dt,
   const IntegerVector& minute = do_minute ? periods["minutes"] : IntegerVector::create(0);
   const NumericVector& second = do_second ? periods["seconds"] : NumericVector::create(0);
 
-  if (dt.size() == 0) return(newDatetimeVector(dt));
 
   std::vector<R_xlen_t> sizes {
     year.size(), month.size(), week.size(), day.size(),
@@ -265,7 +269,12 @@ Rcpp::newDatetimeVector C_time_add(const Rcpp::NumericVector& dt,
       int_fast64_t secs = floor_to_int64(dti);
 
       if (ISNAN(dti) || secs == NA_INT64) {
-        out[i] = NA_REAL;
+        if (dti == R_PosInf)
+          out[i] = R_PosInf;
+        else if (dti == R_NegInf)
+          out[i] = R_NegInf;
+        else
+          out[i] = NA_REAL;
         continue;
       }
 
@@ -357,9 +366,9 @@ Rcpp::newDatetimeVector C_time_add(const Rcpp::NumericVector& dt,
 }
 
 // [[Rcpp::export]]
-newDatetimeVector C_force_tz(const NumericVector dt,
-                             const CharacterVector tz,
-                             const std::string roll_dst) {
+Rcpp::newDatetimeVector C_force_tz(const NumericVector dt,
+                                   const CharacterVector tz,
+                                   const std::string roll_dst) {
   // roll: logical, if `true`, and `time` falls into the DST-break, assume the
   // next valid civil time, otherwise return NA
 

@@ -4,37 +4,48 @@
 \alias{time_update}
 \title{Update components of a date-time object}
 \usage{
-time_update(time, updates = NULL, year = NULL, month = NULL,
-  yday = NULL, day = NULL, mday = NULL, wday = NULL, hour = NULL,
-  minute = NULL, second = NULL, tz = NULL, roll_month = "last",
-  roll_dst = "boundary", week_start = getOption("week_start", 1))
+time_update(
+  time,
+  updates = NULL,
+  year = NULL,
+  month = NULL,
+  yday = NULL,
+  day = NULL,
+  mday = NULL,
+  wday = NULL,
+  hour = NULL,
+  minute = NULL,
+  second = NULL,
+  tz = NULL,
+  roll_month = "last",
+  roll_dst = "boundary",
+  week_start = getOption("timechange.week_start", 1)
+)
 }
 \arguments{
 \item{time}{a date-time object}
 
-\item{updates}{a string specification of components to be updated (not
-implemented yet) or a named list of components.}
+\item{updates}{a named list of components}
 
 \item{year, month, yday, wday, mday, day, hour, minute, second}{components of the
-date-time to be updated. \code{day} is equivalent to \code{mday}. All except \code{second}
-will be converted to integer.}
+date-time to be updated. \code{day} is equivalent to \code{mday}. All components
+except \code{second} will be converted to integer.}
 
 \item{tz}{time zone component (a singleton character vector)}
 
 \item{roll_month, roll_dst}{See \code{\link[=time_add]{time_add()}}.}
 
-\item{week_start}{week starting day (Default is 1, Monday). Set \code{week_start}
-option to change this globally.}
+\item{week_start}{first day of the week (default is 1, Monday). Set
+\code{timechange.week_start} option to change this globally.}
 }
 \value{
-a date object with the requested elements updated. The object will
-retain its original class unless the original class is \code{Date} and at least
-one of the \code{hour}, \code{minute}, \code{second} or \code{tz} is supplied, in which case a
-\code{POSIXct} object is returned.
+A date-time with the requested elements updated.  Retain its original
+class unless the original class is \code{Date} and at least one of the \code{hour},
+\code{minute}, \code{second} or \code{tz} is supplied, in which case a \code{POSIXct} object is
+returned.
 }
 \description{
-\code{time_update} returns a date-time with the specified elements updated.
-Elements not specified will be left unchanged.
+Update components of a date-time object
 }
 \examples{
 date <- as.Date("2009-02-10")
@@ -42,4 +53,9 @@ time_update(date, year = 2010, month = 1, mday = 1)
 time_update(date, year = 2010, month = 13, mday = 1)
 time_update(date, minute = 10, second = 3)
 time_update(date, minute = 10, second = 3, tz = "America/New_York")
+
+time <- as.POSIXct("2015-02-03 01:02:03", tz = "America/New_York")
+time_update(time, year = 2016, yday = 10)
+time_update(time, year = 2016, yday = 10, tz = "Europe/Amsterdam")
+time_update(time, second = 30,  tz = "America/New_York")
 }

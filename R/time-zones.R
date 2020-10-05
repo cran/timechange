@@ -83,7 +83,7 @@ time_at_tz <- function(time, tz = "UTC") {
 #'   date-time. Computation is vectorized over both `time` and `tz` arguments.
 #'
 #' @param roll_dst same as in `time_add` which see.
-#' @param tzout timezone of the output date-time vector. Meaningfull only when
+#' @param tzout timezone of the output date-time vector. Meaningful only when
 #'   `tz` argument is a vector of heterogenuous time-zones. This argument is
 #'   necessary because R date-time vectors cannot hold elements with different
 #'   time-zones.
@@ -134,6 +134,9 @@ time_clock_at_tz <- function(time, tz = NULL, units = "secs") {
     }
     time
   } else {
+    time <-
+      if (is.Date(time)) date2posixct(time)
+      else as.POSIXct(time)
     .clock_at_tz(time, tz, units)
   }
 }
@@ -148,7 +151,7 @@ time_clock_at_tz <- function(time, tz = NULL, units = "secs") {
     time <- rep_len(time, length(tz))
     attributes(time) <- attr
   }
-  secs <- C_local_clock(as.POSIXct(time), tz)
+  secs <- C_local_clock(time, tz)
   out <- structure(secs, units = "secs", class = "difftime")
   units(out) <- units
   out

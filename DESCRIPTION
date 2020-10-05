@@ -1,6 +1,6 @@
 Package: timechange
 Title: Efficient Changing of Date-Times
-Version: 0.0.1
+Version: 0.0.2
 Authors@R: c(person("Vitalie", "Spinu", email = "spinuvit@gmail.com", role = c("aut", "cre")),
              person("Google Inc.", role = c("ctb", "cph")))
 Description: Efficient routines for manipulation of date-time objects while
@@ -23,11 +23,11 @@ SystemRequirements: A system with zoneinfo data (e.g.
         with R is used.
 BugReports: https://github.com/vspinu/timechange/issues
 URL: https://github.com/vspinu/timechange/
-RoxygenNote: 6.0.1
+RoxygenNote: 7.1.1
 NeedsCompilation: yes
-Packaged: 2018-04-20 10:15:40 UTC; vspinu
+Packaged: 2020-10-05 07:39:27 UTC; vspinu
 Author: Vitalie Spinu [aut, cre],
   Google Inc. [ctb, cph]
 Maintainer: Vitalie Spinu <spinuvit@gmail.com>
 Repository: CRAN
-Date/Publication: 2018-04-26 10:30:14 UTC
+Date/Publication: 2020-10-05 09:40:02 UTC

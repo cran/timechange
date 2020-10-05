@@ -2,18 +2,28 @@
 % Please edit documentation in R/round.R
 \name{time_round}
 \alias{time_round}
-\alias{time_round}
 \alias{time_floor}
-\alias{time_round}
 \alias{time_ceiling}
 \title{Round, floor and ceiling for date-time objects}
 \usage{
-time_round(time, unit = "second", week_start = getOption("week_start", 1))
+time_round(
+  time,
+  unit = "second",
+  week_start = getOption("timechange.week_start", 1)
+)
 
-time_floor(time, unit = "seconds", week_start = getOption("week_start", 1))
+time_floor(
+  time,
+  unit = "seconds",
+  week_start = getOption("timechange.week_start", 1)
+)
 
-time_ceiling(time, unit = "seconds", change_on_boundary = inherits(time,
-  "Date"), week_start = getOption("week_start", 1))
+time_ceiling(
+  time,
+  unit = "seconds",
+  change_on_boundary = inherits(time, "Date"),
+  week_start = getOption("timechange.week_start", 1)
+)
 }
 \arguments{
 \item{time}{a date-time vector (\code{Date}, \code{POSIXct} or \code{POSIXlt})}
@@ -28,15 +38,15 @@ are allowed. With one letter abbreviations are supported, including the
 \code{strptime} formats "y", "m", "d", "M", "H", "S". Multi-unit rounding of
 weeks is currently not supported.}
 
-\item{week_start}{when unit is \code{weeks} specify the reference day. Defaults to
-1 (Monday).}
+\item{week_start}{When unit is \code{weeks}, this is the first day of the
+week. Defaults to 1 (Monday).}
 
 \item{change_on_boundary}{If NULL (the default) don't change instants on the
-boundary (\code{time_ceiling(ymd_hms('2000-01-01 00:00:00'))} is \code{2000-01-01 00:00:00}), but round up \code{Date} objects to the next boundary
+boundary (\code{time_ceiling(ymd_hms('2000-01-01 00:00:00'))} is \verb{2000-01-01 00:00:00}), but round up \code{Date} objects to the next boundary
 (\code{time_ceiling(ymd("2000-01-01"), "month")} is \code{"2000-02-01"}). When
 \code{TRUE}, instants on the boundary are rounded up to the next boundary. When
 \code{FALSE}, date-time on the boundary are never rounded up (this was the
-default for \pkg{lubridate} prior to \code{v1.6.0}. See section \code{Rounding Up Date Objects} below for more details.}
+default for \pkg{lubridate} prior to \code{v1.6.0}. See section \verb{Rounding Up Date Objects} below for more details.}
 }
 \value{
 An object of the same class as the input object. When input is a
@@ -49,19 +59,18 @@ multiple of a unit. Units can be specified flexibly as strings; all common
 abbreviations are supported - secs, min, mins, 2 minutes, 3 years, 2s, 1d
 etc.
 
-\code{time_round()} takes a date-time object and rounds it to the
-nearest value of the specified time unit. For rounding date-times which is
-exactly halfway between two consecutive units, the convention is to round
-up. Note that this is in line with the behavior of R's
-\code{\link[base:round.POSIXt]{base::round.POSIXt()}} function but does not follow the convention of the
-base \code{\link[base:round]{base::round()}} function which "rounds to the even digit" per IEC
-60559.
+\code{time_round()} rounds a date-time to the nearest value of the
+specified time unit. For rounding date-times which is exactly halfway
+between two consecutive units, the convention is to round up. Note that
+this is in line with the behavior of R's \code{\link[base:round.POSIXt]{base::round.POSIXt()}} function
+but does not follow the convention of the base \code{\link[base:Round]{base::round()}} function
+which "rounds to the even digit" per IEC 60559.
 
-\code{time_floor} takes a date-time object and rounds it down to the
-nearest boundary of the specified time unit.
+\code{time_floor} rounds down a date-time to the nearest lower
+boundary of the specified time unit.
 
-\code{time_ceiling()} takes a date-time object and rounds it up to the
-nearest boundary of the specified time unit.
+\code{time_ceiling()} rounds up the date-time to the nearest boundary
+of the specified time unit.
 }
 \section{Civil Time vs Absolute Time rounding}{
 
@@ -75,7 +84,7 @@ Absolute time rounding (with \code{aseconds}) is done on the absolute time (numb
 of seconds since origin), Thus, rounding of \code{aseconds} allows for fractional
 seconds and multi-units larger than 60. See examples of rounding around DST
 transition where rounding in civil time does not give same result as rounding
-with the corresponding \code{X aseconds}.
+with the corresponding \verb{X aseconds}.
 
 Please note that absolute rounding to fractions smaller than 1ms will result
 to large precision errors due to the floating point representation of the
@@ -88,13 +97,13 @@ POSIXct objects.
 By default rounding up \code{Date} objects follows 3 steps:
 \enumerate{
 \item Convert to an instant representing lower bound of the Date:
-\code{2000-01-01} --> \code{2000-01-01 00:00:00}
+\code{2000-01-01} --> \verb{2000-01-01 00:00:00}
 \item Round up to the \strong{next} closest rounding unit boundary. For example,
 if the rounding unit is \code{month} then next closest boundary of \code{2000-01-01}
-is \code{2000-02-01 00:00:00}.
+is \verb{2000-02-01 00:00:00}.
 
 The motivation for this is that the "partial" \code{2000-01-01} is conceptually
-an interval (\code{2000-01-01 00:00:00} -- \code{2000-01-02 00:00:00}) and the day
+an interval (\verb{2000-01-01 00:00:00} -- \verb{2000-01-02 00:00:00}) and the day
 hasn't started clocking yet at the exact boundary \code{00:00:00}. Thus, it
 seems wrong to round up a day to its lower boundary.
 
@@ -190,5 +199,5 @@ time_floor(x, "3600a") # "2014-11-02 01:00:00 EST"  - 25m
 difftime(time_floor(x, "a"), x)
 }
 \seealso{
-\code{\link[base:round]{base::round()}}
+\code{\link[base:Round]{base::round()}}
 }
