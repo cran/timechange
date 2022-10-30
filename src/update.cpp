@@ -9,6 +9,8 @@
 // https://github.com/google/cctz/blob/master/include/cctz/time_zone.h
 // https://github.com/devjgm/papers/blob/master/d0216r1.md
 // https://raw.githubusercontent.com/devjgm/papers/master/resources/struct-civil_lookup.png
+// https://en.wikipedia.org/wiki/Tz_database
+// https://github.com/eggert/tz/blob/2018d/etcetera#L36-L42
 
 // R's timezone registry:
 // https://github.com/SurajGupta/r-source/blob/master/src/extra/tzone/registryTZ.c
@@ -21,11 +23,12 @@ Rcpp::newDatetimeVector C_time_update(const Rcpp::NumericVector& dt,
                                       const Rcpp::List& updates,
                                       const SEXP tz,
                                       const std::string roll_month,
-                                      const std::string roll_dst,
-                                      const int week_start = 1) {
+                                      const Rcpp::CharacterVector roll_dst,
+                                      const int week_start = 1,
+                                      const bool exact = false) {
 
-  Roll rmonth = roll_type(roll_month);
-  Roll rdst = roll_type(roll_dst);
+  RollMonth rmonth = parse_month_roll(roll_month);
+  DST rdst(roll_dst);
 
   bool do_year = updates.containsElementNamed("year"),
     do_month = updates.containsElementNamed("month"),
@@ -60,14 +63,15 @@ Rcpp::newDatetimeVector C_time_update(const Rcpp::NumericVector& dt,
     loop_hour = sizes[5] == N, loop_minute = sizes[6] == N, loop_second = sizes[7] == N,
     loop_dt = dt.size() == N;
 
-  if (sizes[0] > 1 && !loop_year) stop("C_update_dt: Invalid size of 'year' vector");
-  if (sizes[1] > 1 && !loop_month) stop("C_update_dt: Invalid size of 'month' vector");
-  if (sizes[2] > 1 && !loop_yday) stop("C_update_dt: Invalid size of 'yday' vector");
-  if (sizes[3] > 1 && !loop_mday) stop("C_update_dt: Invalid size of 'mday' vector");
-  if (sizes[4] > 1 && !loop_wday) stop("C_update_dt: Invalid size of 'wday' vector");
-  if (sizes[5] > 1 && !loop_hour) stop("C_update_dt: Invalid size of 'hour' vector");
-  if (sizes[6] > 1 && !loop_minute) stop("C_update_dt: Invalid size of 'minute' vector");
-  if (sizes[7] > 1 && !loop_second) stop("C_update_dt: Invalid size of 'second' vector");
+  // fixme: more informative message
+  if (do_year && sizes[0] != 1 && !loop_year) stop("time_update: Invalid size of 'year' vector");
+  if (do_month && sizes[1] != 1 && !loop_month) stop("time_update: Invalid size of 'month' vector");
+  if (do_yday && sizes[2] != 1 && !loop_yday) stop("time_update: Invalid size of 'yday' vector");
+  if (do_mday && sizes[3] != 1 && !loop_mday) stop("time_update: Invalid size of 'mday' vector");
+  if (do_wday && sizes[4] != 1 && !loop_wday) stop("time_update: Invalid size of 'wday' vector");
+  if (do_hour && sizes[5] != 1 && !loop_hour) stop("time_update: Invalid size of 'hour' vector");
+  if (do_minute && sizes[6] != 1 && !loop_minute) stop("time_update: Invalid size of 'minute' vector");
+  if (do_second && sizes[7] != 1 && !loop_second) stop("time_update: Invalid size of 'second' vector");
 
   if (dt.size() > 1 && !loop_dt)
     stop("C_update_dt: length of dt vector must be 1 or match the length of updating vectors");
@@ -75,18 +79,27 @@ Rcpp::newDatetimeVector C_time_update(const Rcpp::NumericVector& dt,
   if (do_yday + do_mday + do_wday > 1)
     stop("Conflicting days input, only one of yday, mday and wday must be supplied");
 
+  if (do_yday && (do_month || do_mday))
+    stop("Setting `yday` in combination with `month` or `mday` is not supported");
+
+  if (do_wday && (do_year || do_month || do_mday))
+    stop("Setting `yday` in combination with `year`, `month` or `mday` is not supported");
+
+  if ((do_yday && do_wday))
+    stop("Setting both `yday` and `wday` is not supported");
+
   std::string tzfrom = tz_from_tzone_attr(dt);
-  cctz::time_zone tzone1;
-  load_tz_or_fail(tzfrom, tzone1, "CCTZ: Invalid timezone of the input vector: \"%s\"");
+  cctz::time_zone otzone;
+  load_tz_or_fail(tzfrom, otzone, "CCTZ: Invalid timezone of the input vector: \"%s\"");
 
   std::string tzto;
-  cctz::time_zone tzone2;
+  cctz::time_zone ntzone;
   if (Rf_isNull(tz)) {
     tzto = tzfrom;
   } else {
     tzto = tz_from_R_tzone(tz);
   }
-  load_tz_or_fail(tzto, tzone2, "CCTZ: Unrecognized tzone: \"%s\"");
+  load_tz_or_fail(tzto, ntzone, "CCTZ: Unrecognized tzone: \"%s\"");
 
   NumericVector out(N);
 
@@ -95,7 +108,6 @@ Rcpp::newDatetimeVector C_time_update(const Rcpp::NumericVector& dt,
     {
       double dti = loop_dt ? dt[i] : dt[0];
       int_fast64_t secs = floor_to_int64(dti);
-
 
       if (ISNAN(dti) || secs == NA_INT64) {
         if (dti == R_PosInf)
@@ -109,12 +121,12 @@ Rcpp::newDatetimeVector C_time_update(const Rcpp::NumericVector& dt,
 
       double rem = dti - secs;
       sys_seconds ss(secs);
-      time_point tp1(ss);
-      cctz::civil_second ct1 = cctz::convert(tp1, tzone1);
+      time_point otp(ss);
+      cctz::civil_second ocs = cctz::convert(otp, otzone);
 
       int_fast64_t
-        y = ct1.year(), m = ct1.month(), d = ct1.day(),
-        H = ct1.hour(), M = ct1.minute(), S = ct1.second();
+        y = ocs.year(), m = ocs.month(), d = ocs.day(),
+        H = ocs.hour(), M = ocs.minute(), S = ocs.second();
 
       /* Rprintf("dti: %f sec:%ld H:%d M:%d S:%d\n", dti, secs, H, M, S); */
 
@@ -122,47 +134,40 @@ Rcpp::newDatetimeVector C_time_update(const Rcpp::NumericVector& dt,
         y = loop_year ? year[i] : year[0];
         if (y == NA_INT32) { out[i] = NA_REAL; continue; }
       }
+
       if (do_month) {
         m = loop_month ? month[i] : month[0];
         if (m == NA_INT32) { out[i] = NA_REAL; continue; }
       }
 
-      if (do_yday) {
-        // yday and d are 1 based
-        d = d - cctz::get_yearday(cctz::civil_day(ct1));
-        if (loop_yday) d += yday[i]; else d += yday[0];
-      }
-
-      if (do_wday) {
-        // wday is 1 based and starts on week_start
-        int cur_wday = (static_cast<int>(cctz::get_weekday(cctz::civil_day(ct1))) + 8 - week_start) % 7;
-        d = d - cur_wday - 1;
-        if (loop_wday) d += wday[i]; else d += wday[0];
-      }
-
       if (do_mday) {
         d = loop_mday ? mday[i] : mday[0];
-        if (d == NA_INT32) {out[i] = NA_REAL; continue; }
+        if (d == NA_INT32) { out[i] = NA_REAL; continue; }
       }
 
-      cctz::civil_day cd = cctz::civil_day(y, m, d);
-      if (cd.day() != d) {
-        // month rolling kicks in
-        switch(rmonth) {
-         case Roll::SKIP: break;
-         case Roll::BOUNDARY:
-           cd = cctz::civil_day(cctz::civil_month(cd));
-           H = 0; M = 0; S = 0; rem = 0.0;
-           break;
-         case Roll::FIRST:
-           cd = cctz::civil_day(cctz::civil_month(cd));
-           break;
-         case Roll::LAST:
-           cd = cctz::civil_day(cctz::civil_month(cd)) - 1;
-           break;
-         case Roll::NA:
-           out[i] = NA_REAL;
-           continue;
+      cctz::civil_month cm = cctz::civil_month(y, m);
+
+      if (rmonth == RollMonth::NAym) {
+        // lubridate historical case of returning NA when intermediate month+year result
+        // in a invalid date
+        if (d != cctz::civil_day(y, m, d).day()) { out[i] = NA_REAL; continue; }
+      }
+
+      if (do_yday || do_wday) {
+        cctz::civil_day cd = cctz::civil_day(y, m, d);
+        d = cd.day();
+        // - yda and wday are recycled
+        // - yday and wday apply after y,m,d computaiton and is always valid
+        if (do_yday) {
+          // yday and d are 1 based
+          d = d - cctz::get_yearday(cd);
+          if (loop_yday) d += yday[i]; else d += yday[0];
+        }
+        if (do_wday) {
+          // wday is 1 based and starts on week_start
+          int cur_wday = (static_cast<int>(cctz::get_weekday(cd)) + 8 - week_start) % 7;
+          d = d - cur_wday - 1;
+          if (loop_wday) d += wday[i]; else d += wday[0];
         }
       }
 
@@ -170,10 +175,12 @@ Rcpp::newDatetimeVector C_time_update(const Rcpp::NumericVector& dt,
         H = loop_hour ? hour[i] : hour[0];
         if (H == NA_INT32) { out[i] = NA_REAL; continue; }
       }
+
       if (do_minute) {
         M = loop_minute ? minute[i] : minute[0];
         if (M == NA_INT32) { out[i] = NA_REAL; continue; }
       }
+
       if (do_second) {
         double s = loop_second ? second[i] : second[0];
         if (ISNAN(s)) { out[i] = NA_REAL; continue; }
@@ -182,12 +189,74 @@ Rcpp::newDatetimeVector C_time_update(const Rcpp::NumericVector& dt,
         rem = s - S;
       }
 
-      const cctz::civil_second cs2(y, m, d, H, M, S);
-      const cctz::time_zone::civil_lookup cl2 = tzone2.lookup(cs2);
+      cctz::civil_second ncs(y, m, d, H, M, S);
 
-      out[i] = civil_lookup_to_posix(cl2, tzone1, tp1, ct1, rdst, rem);
+      if (exact) {
 
+        bool invalid = false;
+        if (do_yday || do_wday) {
+          if (do_yday) {
+            invalid = invalid ||
+              (cctz::get_yearday(ncs) != (loop_yday ? yday[i] : yday[0]));
+          }
+          // FIXME: fix this logic
+          /* if (do_wday) { */
+          /*   int new_wday = static_cast<int>(cctz::get_weekday(ncs)) + 1; */
+          /*   invalid = invalid || */
+          /*     new_wday != (loop_yday ? wday[i] : wday[0]); */
+          /* } */
+        } else {
+          invalid =
+            ncs.year() != y || ncs.month() != m || ncs.day() != d ||
+            ncs.hour() != H || ncs.minute() != M || ncs.second() != S;
+        }
+
+        if (invalid) {
+          out[i] = NA_REAL;
+          continue;
+        }
+
+      } else {
+
+        // Month recycling - yda and wday are incompatible with year,month,mday units
+        // and month recycling does not make sense
+        if (!(do_yday || do_wday)) {
+
+          // If day is not expected we roll. Rolling can be triggered by recycling
+          // d,H,M,S units or by falling into a non-existing day by virtue of setting
+          // year or month.
+          if (ncs.day() != d && ncs.month() != cm.month()) {
+            switch(rmonth) {
+             case RollMonth::FULL: break;
+             case RollMonth::NA:
+               out[i] = NA_REAL;
+               continue;
+             case RollMonth::NAym: break;
+             case RollMonth::BOUNDARY: {
+               cctz::civil_day cd = cctz::civil_day(cctz::civil_month(ncs));
+               ncs = cctz::civil_second(cd.year(), cd.month(), cd.day(), 0, 0, 0);
+               rem = 0.0;
+               break;
+             }
+             case RollMonth::POSTDAY:
+               ncs = cctz::civil_second(ncs.year(), ncs.month(), 1, ncs.hour(), ncs.minute(), ncs.second());
+               break;
+             case RollMonth::PREDAY: {
+              cctz::civil_day cd = cctz::civil_day(cctz::civil_month(ncs)) - 1;
+               ncs = cctz::civil_second(cd.year(), cd.month(), cd.day(), ncs.hour(), ncs.minute(), ncs.second());
+               break;
+             }
+            }
+          }
+
+        }
+
+      }
+
+      const cctz::time_zone::civil_lookup ncl = ntzone.lookup(ncs);
+      out[i] = civil_lookup_to_posix(ncl, otzone, otp, ocs, rdst, rem);
     }
+
 
   return newDatetimeVector(out, tzto.c_str());
 }
@@ -196,10 +265,10 @@ Rcpp::newDatetimeVector C_time_update(const Rcpp::NumericVector& dt,
 Rcpp::newDatetimeVector C_time_add(const Rcpp::NumericVector& dt,
                                    const Rcpp::List& periods,
                                    const std::string roll_month,
-                                   const std::string roll_dst) {
+                                   const Rcpp::CharacterVector roll_dst) {
 
-  Roll rmonth = roll_type(roll_month);
-  Roll rdst = roll_type(roll_dst);
+  RollMonth rmonth = parse_month_roll(roll_month);
+  DST rdst(roll_dst);
 
   bool do_year = periods.containsElementNamed("years"),
     do_month = periods.containsElementNamed("months"),
@@ -233,16 +302,17 @@ Rcpp::newDatetimeVector C_time_add(const Rcpp::NumericVector& dt,
     loop_hour = hour.size() == N, loop_minute = minute.size() == N,
     loop_second = second.size() == N, loop_dt = dt.size() == N;
 
-  if (year.size() > 1 && !loop_year) stop("C_update_dt: Invalid size of 'year' vector");
-  if (month.size() > 1 && !loop_month) stop("C_update_dt: Invalid size of 'month' vector");
-  if (week.size() > 1 && !loop_week) stop("C_update_dt: Invalid size of 'week' vector");
-  if (day.size() > 1 && !loop_day) stop("C_update_dt: Invalid size of 'day' vector");
-  if (hour.size() > 1 && !loop_hour) stop("C_update_dt: Invalid size of 'hour' vector");
-  if (minute.size() > 1 && !loop_minute) stop("C_update_dt: Invalid size of 'minute' vector");
-  if (second.size() > 1 && !loop_second) stop("C_update_dt: Invalid size of 'second' vector");
+  // fixme: provide vec size info in the message
+  if (do_year && year.size() != 1 && !loop_year) stop("time_add: Invalid size of 'year' vector");
+  if (do_month && month.size() != 1 && !loop_month) stop("time_add: Invalid size of 'month' vector");
+  if (do_week && week.size() != 1 && !loop_week) stop("time_add: Invalid size of 'week' vector");
+  if (do_day && day.size() != 1 && !loop_day) stop("time_add: Invalid size of 'day' vector");
+  if (do_hour && hour.size() != 1 && !loop_hour) stop("time_add: Invalid size of 'hour' vector");
+  if (do_minute && minute.size() != 1 && !loop_minute) stop("time_add: Invalid size of 'minute' vector");
+  if (do_second && second.size() != 1 && !loop_second) stop("time_add: Invalid size of 'second' vector");
 
   if (dt.size() > 1 && !loop_dt)
-    stop("C_update_dt: length of dt vector must be 1 or match the length of updating vectors");
+    stop("C_update_dt: length of datetime vector must be 1 or match the length of updating vectors");
 
   std::string tz_name = tz_from_tzone_attr(dt);
   cctz::time_zone tz;
@@ -305,20 +375,21 @@ Rcpp::newDatetimeVector C_time_add(const Rcpp::NumericVector& dt,
       if (cd.day() != td) {
         // month rolling kicks in
         switch(rmonth) {
-         case Roll::SKIP: break;
-         case Roll::BOUNDARY:
+         case RollMonth::FULL: break;
+         case RollMonth::PREDAY:
+           cd = cctz::civil_day(cctz::civil_month(cd)) - 1;
+           break;
+         case RollMonth::BOUNDARY:
            cd = cctz::civil_day(cctz::civil_month(cd));
            add_my_hms = false;
            break;
-         case Roll::FIRST:
+         case RollMonth::POSTDAY:
            cd = cctz::civil_day(cctz::civil_month(cd));
            break;
-         case Roll::LAST:
-           cd = cctz::civil_day(cctz::civil_month(cd)) - 1;
-           break;
-         case Roll::NA:
+         case RollMonth::NA:
            out[i] = NA_REAL;
            continue;
+         case RollMonth::NAym: break;
         }
       }
       if (do_week) {
@@ -368,11 +439,11 @@ Rcpp::newDatetimeVector C_time_add(const Rcpp::NumericVector& dt,
 // [[Rcpp::export]]
 Rcpp::newDatetimeVector C_force_tz(const NumericVector dt,
                                    const CharacterVector tz,
-                                   const std::string roll_dst) {
+                                   const CharacterVector roll_dst) {
   // roll: logical, if `true`, and `time` falls into the DST-break, assume the
   // next valid civil time, otherwise return NA
 
-  Roll rdst = roll_type(roll_dst);
+  DST rdst(roll_dst);
 
   if (tz.size() != 1)
     stop("`tz` argument must be a single character string");
@@ -395,11 +466,11 @@ Rcpp::newDatetimeVector C_force_tz(const NumericVector dt,
       /* printf("na: %i na64: %+" PRIiFAST64 "  secs: %+" PRIiFAST64 "  dt: %f\n", NA_INTEGER, INT_FAST64_MIN, secs, dt[i]); */
       if (secs == NA_INT64) {out[i] = NA_REAL; continue; }
       double rem = dt[i] - secs;
-      sys_seconds d1(secs);
-      time_point tp1(d1);
-      cctz::civil_second ct1 = cctz::convert(tp1, tzfrom);
+      sys_seconds secsfrom(secs);
+      time_point tpfrom(secsfrom);
+      cctz::civil_second ct1 = cctz::convert(tpfrom, tzfrom);
       const cctz::time_zone::civil_lookup cl2 = tzto.lookup(ct1);
-      out[i] = civil_lookup_to_posix(cl2, tzfrom, tp1, ct1, rdst, rem);
+      out[i] = civil_lookup_to_posix(cl2, tzfrom, tpfrom, ct1, rdst, rem);
     }
 
   return newDatetimeVector(out, tzto_name.c_str());
@@ -410,11 +481,11 @@ Rcpp::newDatetimeVector C_force_tz(const NumericVector dt,
 newDatetimeVector C_force_tzs(const NumericVector dt,
                               const CharacterVector tzs,
                               const CharacterVector tz_out,
-                              const std::string roll_dst) {
+                              const CharacterVector roll_dst) {
   // roll: logical, if `true`, and `time` falls into the DST-break, assume the
   // next valid civil time, otherwise return NA
 
-  Roll rdst = roll_type(roll_dst);
+  DST rdst(roll_dst);
 
   if (tz_out.size() != 1)
     stop("In 'tzout' argument must be of length 1");

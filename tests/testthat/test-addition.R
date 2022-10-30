@@ -15,15 +15,13 @@ test_that("addition handles daylight savings time", {
   y <- ctus("2010-03-15 01:02:03")
   expect_equal(time_add(x, days = 1), y)
 
-  expect_equal(time_add(x, hours = 1, minutes = 50, roll_dst = "skip"), ctus("2010-03-14 03:52:03"))
-  expect_equal(time_add(x, hours = 1, minutes = 50, roll_dst = "first"), ctus("2010-03-14 03:52:03"))
-  expect_equal(time_add(x, hours = 1, minutes = 50, roll_dst = "last"), ctus("2010-03-14 01:52:03"))
+  expect_equal(time_add(x, hours = 1, minutes = 50, roll_dst = "post"), ctus("2010-03-14 03:52:03"))
+  expect_equal(time_add(x, hours = 1, minutes = 50, roll_dst = "pre"), ctus("2010-03-14 01:52:03"))
   expect_equal(time_add(x, hours = 1, minutes = 50, roll_dst = "boundary"), ctus("2010-03-14 03:00:00"))
   expect_equal(time_add(x, hours = 1, minutes = 50, roll_dst = "NA"), NAam)
 
-  expect_equal(time_subtract(y, hours = 22, minutes = 50, roll_dst = "skip"), ctus("2010-03-14 01:12:03"))
-  expect_equal(time_subtract(y, hours = 22, minutes = 50, roll_dst = "first"), ctus("2010-03-14 03:12:03"))
-  expect_equal(time_subtract(y, hours = 22, minutes = 50, roll_dst = "last"), ctus("2010-03-14 01:12:03"))
+  expect_equal(time_subtract(y, hours = 22, minutes = 50, roll_dst = "post"), ctus("2010-03-14 03:12:03"))
+  expect_equal(time_subtract(y, hours = 22, minutes = 50, roll_dst = "pre"), ctus("2010-03-14 01:12:03"))
   expect_equal(time_subtract(y, hours = 22, minutes = 50, roll_dst = "boundary"), ctus("2010-03-14 03:00:00"))
   expect_equal(time_subtract(y, hours = 22, minutes = 50, roll_dst = "NA"), NAam)
   expect_equal(time_subtract(y, days = 1), x)
@@ -64,13 +62,13 @@ test_that("addition works with month gap", {
   expect_equal(time_add(y, months = 1), ltutc("2008-02-29 01:02:03"))
   expect_equal(time_add(z, months = 1), as.Date("2008-02-29"))
 
-  expect_equal(time_add(x, years = 2, months = 1, roll_month = "last"), ctutc("2010-02-28 01:02:03"))
-  expect_equal(time_add(y, years = 2, months = 1, roll_month = "last"), ltutc("2010-02-28 01:02:03"))
-  expect_equal(time_add(z, years = 2, months = 1, roll_month = "last"), as.Date("2010-02-28"))
+  expect_equal(time_add(x, years = 2, months = 1, roll_month = "preday"), ctutc("2010-02-28 01:02:03"))
+  expect_equal(time_add(y, years = 2, months = 1, roll_month = "preday"), ltutc("2010-02-28 01:02:03"))
+  expect_equal(time_add(z, years = 2, months = 1, roll_month = "preday"), as.Date("2010-02-28"))
 
-  expect_equal(time_add(x, years = 2, months = 1, roll_month = "first"), ctutc("2010-03-01 01:02:03"))
-  expect_equal(time_add(y, years = 2, months = 1, roll_month = "first"), ltutc("2010-03-01 01:02:03"))
-  expect_equal(time_add(z, years = 2, months = 1, roll_month = "first"), as.Date("2010-03-01"))
+  expect_equal(time_add(x, years = 2, months = 1, roll_month = "postday"), ctutc("2010-03-01 01:02:03"))
+  expect_equal(time_add(y, years = 2, months = 1, roll_month = "postday"), ltutc("2010-03-01 01:02:03"))
+  expect_equal(time_add(z, years = 2, months = 1, roll_month = "postday"), as.Date("2010-03-01"))
 
   expect_equal(time_add(x, years = 2, months = 1, roll_month = "boundary"), ctutc("2010-03-01 00:00:00"))
   expect_equal(time_add(y, years = 2, months = 1, roll_month = "boundary"), ltutc("2010-03-01 00:00:00"))
@@ -88,13 +86,13 @@ test_that("addition works with month gap", {
   expect_equal(time_subtract(y, months = 1), ltutc("2008-02-29 01:02:03"))
   expect_equal(time_subtract(z, months = 1), as.Date("2008-02-29"))
 
-  expect_equal(time_subtract(x, years = 2, months = 1, roll_month = "last"), ctutc("2006-02-28 01:02:03"))
-  expect_equal(time_subtract(y, years = 2, months = 1, roll_month = "last"), ltutc("2006-02-28 01:02:03"))
-  expect_equal(time_subtract(z, years = 2, months = 1, roll_month = "last"), as.Date("2006-02-28"))
+  expect_equal(time_subtract(x, years = 2, months = 1, roll_month = "preday"), ctutc("2006-02-28 01:02:03"))
+  expect_equal(time_subtract(y, years = 2, months = 1, roll_month = "preday"), ltutc("2006-02-28 01:02:03"))
+  expect_equal(time_subtract(z, years = 2, months = 1, roll_month = "preday"), as.Date("2006-02-28"))
 
-  expect_equal(time_subtract(x, years = 2, months = 1, roll_month = "first"), ctutc("2006-03-01 01:02:03"))
-  expect_equal(time_subtract(y, years = 2, months = 1, roll_month = "first"), ltutc("2006-03-01 01:02:03"))
-  expect_equal(time_subtract(z, years = 2, months = 1, roll_month = "first"), as.Date("2006-03-01"))
+  expect_equal(time_subtract(x, years = 2, months = 1, roll_month = "postday"), ctutc("2006-03-01 01:02:03"))
+  expect_equal(time_subtract(y, years = 2, months = 1, roll_month = "postday"), ltutc("2006-03-01 01:02:03"))
+  expect_equal(time_subtract(z, years = 2, months = 1, roll_month = "postday"), as.Date("2006-03-01"))
 
   expect_equal(time_subtract(x, years = 2, months = 1, roll_month = "boundary"), ctutc("2006-03-01 00:00:00"))
   expect_equal(time_subtract(y, years = 2, months = 1, roll_month = "boundary"), ltutc("2006-03-01 00:00:00"))
@@ -122,18 +120,18 @@ test_that("adding vectors works as expected for instants", {
   x <- ctutc(c("2008-01-31 01:02:03", "2009-01-30 01:02:03"))
   y <- ltutc(c("2008-01-31 01:02:03", "2009-01-30 01:02:03"))
   z <- c(as.Date("2008-01-31"), as.Date("2008-01-30"))
-  expect_equal(time_add(x, years = 1, month = 1, roll_month = "last"),
+  expect_equal(time_add(x, years = 1, month = 1, roll_month = "preday"),
                ctutc(c("2009-02-28 01:02:03", "2010-02-28 01:02:03")))
-  expect_equal(time_add(y, years = 1, month = 1, roll_month = "last"),
+  expect_equal(time_add(y, years = 1, month = 1, roll_month = "preday"),
                ltutc(c("2009-02-28 01:02:03", "2010-02-28 01:02:03")))
-  expect_equal(time_add(z, years = 1, month = 1, roll_month = "last"),
+  expect_equal(time_add(z, years = 1, month = 1, roll_month = "preday"),
                as.Date(c("2009-02-28", "2009-02-28")))
 
-  expect_equal(time_add(x, years = 1, month = 1, roll_month = "first"),
+  expect_equal(time_add(x, years = 1, month = 1, roll_month = "postday"),
                ctutc(c("2009-03-01 01:02:03", "2010-03-01 01:02:03")))
-  expect_equal(time_add(y, years = 1, month = 1, roll_month = "first"),
+  expect_equal(time_add(y, years = 1, month = 1, roll_month = "postday"),
                ltutc(c("2009-03-01 01:02:03", "2010-03-01 01:02:03")))
-  expect_equal(time_add(z, years = 1, month = 1, roll_month = "first"),
+  expect_equal(time_add(z, years = 1, month = 1, roll_month = "postday"),
                as.Date(c("2009-03-01", "2009-03-01")))
 
   expect_equal(time_add(x, years = 1, month = 1, roll_month = "boundary"),
@@ -157,21 +155,37 @@ test_that("addition and subtraction work with repeated DST", {
   am1 <- .POSIXct(1414904400, tz = "America/New_York")
   am2 <- am1 + 3600*2
 
-  ## last/prev
-  expect_equal(time_subtract(am2, hours = 1), am1 + 3600)
-  expect_equal(time_subtract(am2, hours = 1, minutes = 1), am1 - 60)
-  expect_equal(time_subtract(am2 + 60, hours = 1), am1 + 3660)
-  expect_equal(time_subtract(am2 + 60, hours = 1, minutes = 1), am1 + 3600)
-  expect_equal(time_subtract(am2 + 60, hours = 1, minutes = 2), am1 - 60)
-  expect_equal(time_subtract(am2 + 60, hours = 1, minutes = 1, seconds = 1), am1 - 1)
+  expect_equal(time_subtract(am2, hours = 1, roll_dst = "post"), am1 + 3600)
+  expect_equal(time_subtract(am2, hours = 1, roll_dst = "pre"), am1)
+  expect_equal(time_subtract(am2, hours = 1, roll_dst = c("pre", "post")), am1 + 3600)
+  expect_equal(time_subtract(am2, hours = 1, minutes = 1, roll_dst = "pre"), am1 - 60)
+  expect_equal(time_subtract(am2 + 60, hours = 1, roll_dst = "post"), am1 + 3660)
+  expect_equal(time_subtract(am2 + 60, hours = 1, minutes = 1, roll_dst = "post"), am1 + 3600)
+  expect_equal(time_subtract(am2 + 60, hours = 1, minutes = 2, roll_dst = "pre"), am1 - 60)
+  expect_equal(time_subtract(am2 + 60, hours = 1, minutes = 1, seconds = 1, roll_dst = "pre"), am1 - 1)
 
-  ## first/next
-  expect_equal(time_add(am1, minutes = 2), am1 + 120)
-  expect_equal(time_add(am1, minutes = 60), am2)
-  expect_equal(time_add(am1 + 60, minutes = 1), am1 + 120)
-  expect_equal(time_add(am1 + 60, hours = 1), am2 + 60)
-  expect_equal(time_add(am1 + 60, minutes = 1), am1 + 120)
-  expect_equal(time_add(am1 + 60, minutes = 60), am2 + 60)
-  expect_equal(time_add(am1 + 60, minutes = 120), am2 + 3660)
+  expect_equal(time_add(am1, minutes = 2, roll_dst = "pre"), am1 + 120)
+  expect_equal(time_add(am1, minutes = 60, roll_dst = "pre"), am2)
+  expect_equal(time_add(am1 + 60, minutes = 1, roll_dst = "pre"), am1 + 120)
+  expect_equal(time_add(am1 + 60, hours = 1, roll_dst = "pre"), am2 + 60)
+  expect_equal(time_add(am1 + 60, minutes = 1, roll_dst = "pre"), am1 + 120)
+  expect_equal(time_add(am1 + 60, minutes = 60, roll_dst = "pre"), am2 + 60)
+  expect_equal(time_add(am1 + 60, minutes = 120, roll_dst = "pre"), am2 + 3660)
 
+})
+
+test_that("addition works on 'strange' DST gaps", {
+  ## Midnight doesn't exist. DST spring forward happens at 2020-03-29 00:00:00
+  ## and they spring forward to hour 1
+  y <- as.POSIXct("2020-03-29 01:00:00", tz = "Asia/Beirut")
+  x <- as.POSIXct("2020-03-28 00:00:00", tz = "Asia/Beirut")
+  expect_equal(y, time_add(x, days = 1))
+  expect_equal(time_add(y, minutes = 5), time_add(x, hours = 24, minutes = 5))
+  expect_equal(time_add(y, minutes = 5), time_add(x, hours = 23, minutes = 65))
+})
+
+test_that("addition errors on empty unit vectors", {
+  y <- ymd_hms("2020-03-29 01:00:00", tz = "Asia/Beirut")
+  expect_error(time_add(y, minute = integer()), "Invalid size of 'minute' vector")
+  expect_error(time_add(y, hour = 1, minute = integer()), "Invalid size of 'minute' vector")
 })

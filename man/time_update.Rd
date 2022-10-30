@@ -17,9 +17,10 @@ time_update(
   minute = NULL,
   second = NULL,
   tz = NULL,
-  roll_month = "last",
-  roll_dst = "boundary",
-  week_start = getOption("timechange.week_start", 1)
+  roll_month = "preday",
+  roll_dst = c("boundary", "post"),
+  week_start = getOption("timechange.week_start", 1),
+  exact = FALSE
 )
 }
 \arguments{
@@ -27,27 +28,51 @@ time_update(
 
 \item{updates}{a named list of components}
 
-\item{year, month, yday, wday, mday, day, hour, minute, second}{components of the
-date-time to be updated. \code{day} is equivalent to \code{mday}. All components
-except \code{second} will be converted to integer.}
+\item{year, month, yday, wday, mday, day, hour, minute, second}{components of the date-time
+to be updated. \code{day} is equivalent to \code{mday}. All components except \code{second} will
+be converted to integer.}
 
 \item{tz}{time zone component (a singleton character vector)}
 
-\item{roll_month, roll_dst}{See \code{\link[=time_add]{time_add()}}.}
+\item{roll_month}{controls how addition of months and years behaves when standard
+arithmetic rules exceed limits of the resulting date's month. Possible values are
+"preday", "boundary", "postday", "full" and "NA". See "Details" or
+\verb{[(timechange::time_add())} for further details.}
+
+\item{roll_dst}{is a string vector of length one or two. When two values are
+supplied they specify how to roll date-times when they fall into "skipped" and
+"repeated" DST transitions respectively. Singleton strings is replicated to the
+length of two. Possible values are:
+
+\if{html}{\out{<div class="sourceCode">}}\preformatted{* `pre` - Use the time before the transition boundary.
+* `boundary` - Use the time exactly at the boundary transition.
+* `post` - Use the time after the boundary transition.
+* `NA` - Produce NAs when the resulting time falls inside the problematic interval.
+}\if{html}{\out{</div>}}
+
+For example `roll_dst = c("pre", "NA") indicates that for repeated intervals
+return the time in the earlier interval and for skipped intervals return NA.}
 
 \item{week_start}{first day of the week (default is 1, Monday). Set
 \code{timechange.week_start} option to change this globally.}
+
+\item{exact}{logical (TRUE), whether the update should be exact. If set to \code{FALSE} no
+rolling or unit-recycling is allowed and \code{NA} is produced whenever the units of the
+end date-time don't match the provided units. This can occur when an end date falls
+into a gap (e.g. DST or Feb.29) or when large components (e.g. \code{hour = 25}) are
+supplied and result in crossing boundaries of higher units. When \code{exact = TRUE},
+\code{roll_month} and \code{roll_dst} arguments are ignored.}
 }
 \value{
-A date-time with the requested elements updated.  Retain its original
-class unless the original class is \code{Date} and at least one of the \code{hour},
-\code{minute}, \code{second} or \code{tz} is supplied, in which case a \code{POSIXct} object is
-returned.
+A date-time with the requested elements updated.  Retain its original class
+unless the original class is \code{Date} and at least one of the \code{hour}, \code{minute},
+\code{second} or \code{tz} is supplied, in which case a \code{POSIXct} object is returned.
 }
 \description{
 Update components of a date-time object
 }
 \examples{
+
 date <- as.Date("2009-02-10")
 time_update(date, year = 2010, month = 1, mday = 1)
 time_update(date, year = 2010, month = 13, mday = 1)
@@ -55,7 +80,18 @@ time_update(date, minute = 10, second = 3)
 time_update(date, minute = 10, second = 3, tz = "America/New_York")
 
 time <- as.POSIXct("2015-02-03 01:02:03", tz = "America/New_York")
+time_update(time, month = 2, mday = 31, roll_month = "preday")
+time_update(time, month = 2, mday = 31, roll_month = "boundary")
+time_update(time, month = 2, mday = 31, roll_month = "postday")
+time_update(time, month = 2, mday = 31, exact = TRUE)
+time_update(time, month = 2, mday = 31, exact = FALSE)
+
+## DST skipped
+time <- as.POSIXct("2015-02-03 01:02:03", tz = "America/New_York")
 time_update(time, year = 2016, yday = 10)
 time_update(time, year = 2016, yday = 10, tz = "Europe/Amsterdam")
 time_update(time, second = 30,  tz = "America/New_York")
+}
+\seealso{
+\verb{[time_add()]}
 }

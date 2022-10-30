@@ -198,28 +198,45 @@ test_that("Updates on ydays works correctly with leap year", {
 
 
 test_that("update performs roll overs correctly for Date objects", {
-  date <- as.Date("05/05/2010", "%m/%d/%Y")
-  expect_equal(second(time_update(date, second = 61)), 1)
-  expect_equal(minute(time_update(date, second = 61)), 1)
-  expect_equal(minute(time_update(date, minute = 61)), 1)
-  expect_equal(hour(time_update(date, minute = 61)), 1)
-  expect_equal(hour(time_update(date, hour = 25)), 1)
-  expect_equal(mday(time_update(date, hour = 25)), 6)
-  expect_equal(yday(time_update(date, hour = 25)), 126)
-  expect_equal(wday(time_update(date, hour = 25)), (wday(date) + 1) %% 7)
-  expect_equal(mday(time_update(date, mday = 32)), 1)
-  expect_equal(month(time_update(date, mday = 32)), 6)
-  expect_equal(wday(time_update(date, wday = 31)), 3)
-  expect_equal(month(time_update(date, wday = 31)), 6)
-  expect_equal(yday(time_update(date, yday = 366)), 1)
-  expect_equal(month(time_update(date, yday = 366)), 1)
-  expect_equal(month(time_update(date, month = 13)), 1)
-  expect_equal(year(time_update(date, month = 13)), 2011)
+  date <- ymd("2010-05-05")
+  expect_equal(time_update(date, second = 61), ymd_hms("2010-05-05 00:01:01"))
+  expect_equal(time_update(date, day = 29, second = 61), ymd_hms("2010-05-29 00:01:01"))
+
+  date <- ymd("2001-02-20")
+  expect_equal(time_update(date, day = 29, roll_month = "preday"), ymd("2001-02-28"))
+  expect_equal(time_update(date, day = 29, roll_month = "postday"), ymd("2001-03-01"))
+  expect_equal(time_update(date, day = 28, hour = 25, second = 2, roll_month = "postday"),
+               ymd_hms("2001-03-01 01:00:02"))
+  expect_equal(time_update(date, day = 28, hour = 25, second = 2, roll_month = "preday"),
+               ymd_hms("2001-02-28 01:00:02"))
+  expect_equal(time_update(date, day = 28, hour = 25, second = 2, roll_month = "boundary"),
+               ymd_hms("2001-03-01 00:00:00"))
+
+
+  expect_equal(time_update(date, hour = 25),  ymd_hms("2001-02-21 01:00:00"))
+  expect_equal(time_update(date, hour = 240), ymd_hms("2001-02-28 00:00:00"))
+  expect_equal(time_update(date, hour = 241, roll_month = "postday"), ymd_hms("2001-03-01 01:00:00"))
+  expect_equal(time_update(date, hour = 241, roll_month = "boundary"), ymd_hms("2001-03-01 00:00:00"))
+  expect_equal(time_update(date, hour = 241, roll_month = "NA"), NA_POSIXct_)
+  expect_equal(time_update(date, hour = 241, exact = T), NA_POSIXct_)
+
+  date <- ymd("2010-05-05")
+  ## setting yday is exactly what we want so roll_month has no effect
+  expect_equal(time_update(date, yday = 365, exact = T), ymd("2010-12-31"))
+  expect_equal(time_update(date, yday = 370, exact = T), NA_Date_)
+  expect_equal(time_update(date, yday = 370, roll_month = "postday"), ymd("2011-01-05"))
+  expect_equal(time_update(date, yday = 370, roll_month = "preday"),  ymd("2011-01-05"))
+  expect_equal(time_update(date, yday = 370, roll_month = "boundary"), ymd("2011-01-05"))
+
+  expect_equal(time_update(date, month = 13, roll_month = "postday"), ymd("2011-01-05"))
+  expect_equal(time_update(date, month = 13, roll_month = "preday"), ymd("2011-01-05"))
+  expect_equal(time_update(date, month = 13, roll_month = "boundary"), ymd("2011-01-05"))
+
   expect_equal(timechange:::tz(time_update(date, month = 13)), "UTC")
 })
 
 test_that("update performs roll overs correctly for POSIXlt objects", {
-  poslt <- as.POSIXlt("2010-05-05 00:00:00", tz = "GMT", format = "%Y-%m-%d %H:%M:%S")
+  poslt <- ymd_hms("2010-05-05 00:00:00")
   expect_equal(second(time_update(poslt, second = 61)), 1)
   expect_equal(minute(time_update(poslt, second = 61)), 1)
   expect_equal(minute(time_update(poslt, minute = 61)), 1)
@@ -228,19 +245,20 @@ test_that("update performs roll overs correctly for POSIXlt objects", {
   expect_equal(mday(time_update(poslt, hour = 25)), 6)
   expect_equal(yday(time_update(poslt, hour = 25)), 126)
   expect_equal(wday(time_update(poslt, hour = 25)), 4)
-  expect_equal(mday(time_update(poslt, mday = 32)), 1)
-  expect_equal(month(time_update(poslt, mday = 32)), 6)
+  expect_equal(mday(time_update(poslt, mday = 32)), 31)
+  expect_equal(mday(time_update(poslt, mday = 32, roll_month = "postday")), 1)
+  expect_equal(month(time_update(poslt, mday = 32)), 5)
   expect_equal(wday(time_update(poslt, wday = 31)), 3)
   expect_equal(month(time_update(poslt, wday = 31)), 6)
   expect_equal(yday(time_update(poslt, yday = 366)), 1)
   expect_equal(month(time_update(poslt, yday = 366)), 1)
   expect_equal(month(time_update(poslt, month = 13)), 1)
   expect_equal(year(time_update(poslt, month = 13)), 2011)
-  expect_equal(timechange:::tz(time_update(poslt, month = 13)), "GMT")
+  expect_equal(timechange:::tz(time_update(poslt, month = 13)), "UTC")
 })
 
 test_that("update performs roll overs correctly for POSIXct objects", {
-  posct <- as.POSIXct("2010-05-05 00:00:00", tz = "GMT", format = "%Y-%m-%d %H:%M:%S")
+  posct <- as.POSIXct("2010-05-05 00:00:00", tz = "UTC", format = "%Y-%m-%d %H:%M:%S")
   expect_equal(second(time_update(posct, second = 61)), 1)
   expect_equal(minute(time_update(posct, second = 61)), 1)
   expect_equal(minute(time_update(posct, minute = 61)), 1)
@@ -249,48 +267,42 @@ test_that("update performs roll overs correctly for POSIXct objects", {
   expect_equal(mday(time_update(posct, hour = 25)), 6)
   expect_equal(yday(time_update(posct, hour = 25)), 126)
   expect_equal(wday(time_update(posct, hour = 25)), 4)
-  expect_equal(mday(time_update(posct, mday = 32)), 1)
-  expect_equal(month(time_update(posct, mday = 32)), 6)
+  expect_equal(mday(time_update(posct, mday = 32)), 31)
+  expect_equal(time_update(posct, mday = 32, exact = T), NA_POSIXct_)
+  expect_equal(month(time_update(posct, mday = 32)), 5)
   expect_equal(wday(time_update(posct, wday = 31)), 3)
   expect_equal(month(time_update(posct, wday = 31)), 6)
   expect_equal(yday(time_update(posct, yday = 366)), 1)
   expect_equal(month(time_update(posct, yday = 366)), 1)
   expect_equal(month(time_update(posct, month = 13)), 1)
   expect_equal(year(time_update(posct, month = 13)), 2011)
-  expect_equal(timechange:::tz(time_update(posct, month = 13)), "GMT")
+  expect_equal(timechange:::tz(time_update(posct, month = 13)), "UTC")
 })
 
 test_that("update performs consecutive roll overs correctly for
   Date objects regardless of order", {
-    date <- time_update(as.Date("11/01/2010", "%m/%d/%Y"),
-                        month = 13, day = 32, hour = 25, minute = 61, second = 61)
-    expect_equal(second(date), 1)
-    expect_equal(minute(date), 2)
-    expect_equal(hour(date), 2)
-    expect_equal(mday(date), 2)
-    expect_equal(wday(date), 3)
-    expect_equal(yday(date), 33)
-    expect_equal(month(date), 2)
-    expect_equal(year(date), 2011)
-    expect_equal(timechange:::tz(date), "UTC")
-    date2 <- time_update(as.Date("11/01/2010", "%m/%d/%Y"),
-                         second = 61, minute = 61, hour = 25, day = 32, month = 13)
-    expect_equal(second(date2), 1)
-    expect_equal(minute(date2), 2)
-    expect_equal(hour(date2), 2)
-    expect_equal(mday(date2), 2)
-    expect_equal(wday(date2), 3)
-    expect_equal(yday(date2), 33)
-    expect_equal(month(date2), 2)
-    expect_equal(year(date2), 2011)
-    expect_equal(timechange:::tz(date2), "UTC")
+    expect_equal(time_update(ymd("2010-01-11"),
+                             month = 13, day = 32, hour = 25,
+                             minute = 61, second = 61),
+                 ymd_hms("2011-01-31 02:02:01"))
+    expect_equal(time_update(ymd("2010-01-11"),
+                             month = 13, day = 32, hour = 25,
+                             minute = 61, second = 61,
+                             roll_month = "boundary"),
+                 ymd_hms("2011-02-01 00:00:00"))
+    expect_equal(time_update(ymd("2010-01-11"),
+                             month = 13, day = 32, hour = 25,
+                             minute = 61, second = 61,
+                             roll_month = "NA"),
+                 NA_POSIXct_)
   })
 
 test_that("update performs consecutive roll overs correctly for POSIXlt objects", {
   posl <- as.POSIXlt("2010-11-01 00:00:00",
                      tz = "GMT", format = "%Y-%m-%d %H:%M:%S")
   poslt <- time_update(posl, month = 13, day = 32, hour = 25,
-                       minute = 61, second = 61)
+                       minute = 61, second = 61,
+                       roll_month = "skip")
   expect_equal(second(poslt), 1)
   expect_equal(minute(poslt), 2)
   expect_equal(hour(poslt), 2)
@@ -301,7 +313,7 @@ test_that("update performs consecutive roll overs correctly for POSIXlt objects"
   expect_equal(year(poslt), 2011)
   expect_equal(timechange:::tz(poslt), "GMT")
   poslt2 <- time_update(posl, second = 61, minute = 61, hour = 25,
-                        day = 32, month = 13)
+                        day = 32, month = 13, roll_month = "skip")
   expect_equal(second(poslt2), 1)
   expect_equal(minute(poslt2), 2)
   expect_equal(hour(poslt2), 2)
@@ -317,7 +329,7 @@ test_that("update performs consecutive roll overs correctly for POSIXct objects"
   posc <- as.POSIXct("2010-11-01 00:00:00",
                      tz = "GMT", format = "%Y-%m-%d %H:%M:%S")
   posct <- time_update(posc, month = 13, day = 32, hour = 25,
-                       minute = 61, second = 61)
+                       minute = 61, second = 61, roll_month = "skip")
   expect_equal(second(posct), 1)
   expect_equal(minute(posct), 2)
   expect_equal(hour(posct), 2)
@@ -328,7 +340,7 @@ test_that("update performs consecutive roll overs correctly for POSIXct objects"
   expect_equal(year(posct), 2011)
   expect_equal(timechange:::tz(posct), "GMT")
   posct2 <- time_update(posc, second = 61, minute = 61, hour = 25,
-                        day = 32, month = 13)
+                        day = 32, month = 13, roll_month = "skip")
   expect_equal(second(posct2), 1)
   expect_equal(minute(posct2), 2)
   expect_equal(hour(posct2), 2)
@@ -361,6 +373,31 @@ test_that("update returns NA for date-times in the spring dst gap", {
   expect_true(is.na(time_update(poslt, tz = "America/New_York", roll_dst = "NA")))
 })
 
+test_that("time_update roll_dst specs  work correctly", {
+  ## DST repeat 2022-10-29 02:00:00 CEST -- 2022-10-29 03:00:00 CET"
+  repref <- ymd_hms("2022-10-30 01:00:00", tz = "Europe/Amsterdam")
+  rep <- ymd_hms("2022-10-29 00:01:02", tz = "Europe/Amsterdam")
+
+  expect_equal(time_update(rep, day = 30, hour = 2, minute = 3, roll_dst = "pre"),
+               repref + 3600 + 3*60 + 2)
+  expect_equal(time_update(rep, day = 30, hour = 2, minute = 3, roll_dst = "boundary"),
+               repref + 2*3600)
+  expect_equal(time_update(rep, day = 30, hour = 2, minute = 3, roll_dst = "post"),
+               repref + 2*3600 + 3*60 + 2)
+  expect_equal(time_update(rep, day = 30, hour = 2, second = 3.35, roll_dst = "pre"),
+               repref + 3600 + 60 + 3.35)
+  expect_equal(time_update(rep, day = 30, hour = 2, second = 3.35, roll_dst = "boundary"),
+               repref + 2*3600)
+  expect_equal(time_update(rep, day = 30, hour = 2, second = 3.35, roll_dst = "post"),
+               repref + 2*3600 + 60 + 3.35)
+
+  ## DST gap    2022-03-27 01:00:00 CET  -- 2022-03-27 02:00:00 CEST
+  gapref <- ymd_hms("2022-03-27 00:00:00", tz = "Europe/Amsterdam")
+  gap <- ymd_hms("2022-03-26 00:00:00", tz = "Europe/Amsterdam")
+  ### FIXME: finish these tests
+
+})
+
 test_that("update with roll_dst = 'boundary' works in dst gap", {
   poslt <- ltus("2010-03-14 01:59:59")
   boundary <- ltus("2010-03-14 03:00:00")
@@ -382,37 +419,37 @@ test_that("update with roll_dst = 'boundary' works in dst gap", {
 test_that("update with roll_dst = 'next' works in dst gap", {
   poslt <- ltus("2010-03-14 01:59:59")
   boundary <- ltus("2010-03-14 03:00:00")
-  expect_equal(time_update(poslt, second = 65, roll_dst = "first"), boundary + 5)
-  expect_equal(time_update(poslt, minute = 65, roll_dst = "first"), boundary + 5 * 60 + 59)
-  expect_equal(time_update(poslt, hour = 2, roll_dst = "first"), boundary +  59*60 + 59)
+  expect_equal(time_update(poslt, second = 65, roll_dst = "post"), boundary + 5)
+  expect_equal(time_update(poslt, minute = 65, roll_dst = "post"), boundary + 5 * 60 + 59)
+  expect_equal(time_update(poslt, hour = 2, roll_dst = "post"), boundary +  59*60 + 59)
   poslt <- ltus("2010-03-13 02:59:59")
-  expect_equal(time_update(poslt, mday = 14, roll_dst = "first"), boundary + 59*60 + 59)
-  expect_equal(time_update(poslt, wday = 7, roll_dst = "first"), boundary + 59*60 + 59)
-  expect_equal(time_update(poslt, yday = 73, roll_dst = "first"), boundary + 59*60 + 59)
+  expect_equal(time_update(poslt, mday = 14, roll_dst = "post"), boundary + 59*60 + 59)
+  expect_equal(time_update(poslt, wday = 7, roll_dst = "post"), boundary + 59*60 + 59)
+  expect_equal(time_update(poslt, yday = 73, roll_dst = "post"), boundary + 59*60 + 59)
   poslt <- ltus("2010-02-14 02:59:59")
-  expect_equal(time_update(poslt, month = 3, roll_dst = "first"), boundary + 59*60 + 59)
+  expect_equal(time_update(poslt, month = 3, roll_dst = "post"), boundary + 59*60 + 59)
   poslt <- ltus("2009-03-14 02:59:59")
-  expect_equal(time_update(poslt, year = 2010, roll_dst = "first"), boundary + 59*60 + 59)
+  expect_equal(time_update(poslt, year = 2010, roll_dst = "post"), boundary + 59*60 + 59)
   poslt <- ltutc("2010-03-14 02:59:59")
-  expect_equal(time_update(poslt, tz = "America/New_York", roll_dst = "first"), boundary + 59*60 + 59)
+  expect_equal(time_update(poslt, tz = "America/New_York", roll_dst = "post"), boundary + 59*60 + 59)
 })
 
 test_that("update with roll_dst = 'prev' works in dst gap", {
   poslt <- ltus("2010-03-14 01:59:59")
   boundary <- ltus("2010-03-14 01:00:00")
-  expect_equal(time_update(poslt, second = 65, roll_dst = "last"), boundary + 5)
-  expect_equal(time_update(poslt, minute = 65, roll_dst = "last"), boundary + 5 * 60 + 59)
-  expect_equal(time_update(poslt, hour = 2, roll_dst = "last"), boundary +  59*60 + 59)
+  expect_equal(time_update(poslt, second = 65, roll_dst = "pre"), boundary + 5)
+  expect_equal(time_update(poslt, minute = 65, roll_dst = "pre"), boundary + 5 * 60 + 59)
+  expect_equal(time_update(poslt, hour = 2, roll_dst = "pre"), boundary +  59*60 + 59)
   poslt <- ltus("2010-03-13 02:59:59")
-  expect_equal(time_update(poslt, mday = 14, roll_dst = "last"), boundary + 59*60 + 59)
-  expect_equal(time_update(poslt, wday = 7, roll_dst = "last"), boundary + 59*60 + 59)
-  expect_equal(time_update(poslt, yday = 73, roll_dst = "last"), boundary + 59*60 + 59)
+  expect_equal(time_update(poslt, mday = 14, roll_dst = "pre"), boundary + 59*60 + 59)
+  expect_equal(time_update(poslt, wday = 7, roll_dst = "pre"), boundary + 59*60 + 59)
+  expect_equal(time_update(poslt, yday = 73, roll_dst = "pre"), boundary + 59*60 + 59)
   poslt <- ltus("2010-02-14 02:59:59")
-  expect_equal(time_update(poslt, month = 3, roll_dst = "last"), boundary + 59*60 + 59)
+  expect_equal(time_update(poslt, month = 3, roll_dst = "pre"), boundary + 59*60 + 59)
   poslt <- ltus("2009-03-14 02:59:59")
-  expect_equal(time_update(poslt, year = 2010, roll_dst = "last"), boundary + 59*60 + 59)
+  expect_equal(time_update(poslt, year = 2010, roll_dst = "pre"), boundary + 59*60 + 59)
   poslt <- ltutc("2010-03-14 02:59:59")
-  expect_equal(time_update(poslt, tz = "America/New_York", roll_dst = "last"), boundary + 59*60 + 59)
+  expect_equal(time_update(poslt, tz = "America/New_York", roll_dst = "pre"), boundary + 59*60 + 59)
 })
 
 test_that("update handles vectors of dates", {
@@ -461,4 +498,31 @@ test_that("update.POSIXct returns input of length zero when given input of lengt
 test_that("update.POSIXlt returns input of length zero when given input of length zero", {
   x <- as.POSIXlt(structure(vector(mode = "numeric"), class = c("POSIXct", "POSIXt")))
   expect_equal(time_update(x, day = 1), x)
+})
+
+test_that("update correctly works for yday", {
+  x <- ymd("2020-01-01")
+  expect_equal(time_update(x, yday = 45), ymd("2020-02-14"))
+  ## FIXME: with NA rolling check the boundary
+  ## expect_equal(time_update(x, yday = 1000, roll_month = "NA"), NA_Date_)
+  ## expect_equal(time_update(x, wday = 10, roll_month = "NA"), NA_Date_)
+
+  x <- ymd_hms("2020-01-01 01:02:03")
+  expect_equal(time_update(x, yday = 45), ymd_hms("2020-02-14 01:02:03"))
+  ## FIXME: with NA rolling check the boundary
+  ## expect_equal(time_update(x, yday = 1000, roll_month = "NA"), NA_POSIXct_)
+  ## expect_equal(time_update(x, wday = 10, roll_month = "NA"), NA_POSIXct_)
+})
+
+
+test_that("update errors on empty unit vectors", {
+  y <- ymd_hms("2020-03-29 01:00:00", tz = "Asia/Beirut")
+  expect_error(time_update(y, minute = integer()), "Invalid size of 'minute' vector")
+  expect_error(time_update(y, hour = 1, minute = integer()), "Invalid size of 'minute' vector")
+})
+
+
+test_that("updating Dates with 0 hms units produces POSIXct.", {
+  expect_equal(time_update(ymd("2020-03-03"), hour = 0, second = 0), ymd("2020-03-03", tz = "UTC"))
+  expect_equal(time_update(ymd("2020-03-03"), hour = NULL), ymd("2020-03-03"))
 })
