@@ -1,13 +1,22 @@
 context("Addition Operations")
 
-test_that("Non-finite date-times are handled correctly", {
-  expect_identical(unclass(time_add(.POSIXct(Inf), hours = 1)), Inf)
-  expect_identical(unclass(time_add(.POSIXct(-Inf), hours = 1)), -Inf)
-  expect_identical(unclass(time_add(.POSIXct(NA_real_), hours = 1)), NA_real_)
+test_that("Integer mode posixct input works", {
+  set.seed(100)
+  int <- seq(ymd("2020-08-13", tz = "UTC"), by = "hour", length.out = 50)
+  expect_true(storage.mode(int) == "integer")
+  dbl <- int
+  secs <- runif(length(int))
+  expect_equal(time_add(int, seconds = int), time_add(dbl, seconds = int))
+  expect_equal(time_add(int, seconds = as.integer(int)), time_add(dbl, seconds = as.integer(int)))
+})
 
-  expect_identical(unclass(time_add(.Date(Inf), days = 1)), Inf)
-  expect_identical(unclass(time_add(.Date(-Inf), days = 1)), -Inf)
-  expect_identical(unclass(time_add(.POSIXct(NA_real_), days = 1)), NA_real_)
+test_that("Non-finite date-times are handled correctly", {
+  expect_equal(time_add(.POSIXct(Inf), hours = 1), .POSIXct(Inf, tz = ""))
+  expect_equal(time_add(.POSIXct(-Inf), hours = 1), .POSIXct(-Inf, tz = ""))
+  expect_equal(time_add(.POSIXct(NA_real_), hours = 1), .POSIXct(NA_real_, tz = ""))
+  expect_equal(time_add(.Date(Inf), days = 1), .Date(Inf))
+  expect_equal(time_add(.Date(-Inf), days = 1), .Date(-Inf))
+  expect_equal(time_add(.POSIXct(NA_real_), days = 1), .POSIXct(NA_real_, tz = ""))
 })
 
 test_that("addition handles daylight savings time", {
@@ -186,6 +195,41 @@ test_that("addition works on 'strange' DST gaps", {
 
 test_that("addition errors on empty unit vectors", {
   y <- ymd_hms("2020-03-29 01:00:00", tz = "Asia/Beirut")
-  expect_error(time_add(y, minute = integer()), "Invalid size of 'minute' vector")
-  expect_error(time_add(y, hour = 1, minute = integer()), "Invalid size of 'minute' vector")
+  expect_error(time_add(y, minute = integer()), "Incompatible size of 'minute' vector")
+  expect_error(time_add(y, hour = 1, minute = integer()), "Incompatible size of 'minute' vector")
+})
+
+test_that("Subtracting months to March 1 produces correct results", {
+  ## https://github.com/tidyverse/lubridate/issues/1037
+  time <- ymd("2022-04-01", tz = "America/New_York")
+  expect_equal(time_add(time, months = -1), ymd("2022-03-01", tz = "America/New_York"))
+  time <- ymd("2022-05-01", tz = "America/New_York")
+  expect_equal(time_add(time, months = -2), ymd("2022-03-01", tz = "America/New_York"))
+  time <- ymd_hms("2022-04-02 04:01:01", tz = "America/New_York")
+  expect_equal(time_add(time, months = -1, days = -1, hours = -4, minutes = -1, seconds = -1),
+               ymd("2022-03-01", tz = "America/New_York"))
+})
+
+test_that("addition works correctly for DST transitions", {
+  ref <- ymd("2017-10-01", tz = "Australia/Melbourne")
+  expect_equal(time_add(ref, hours = 1:3, roll_dst = c("NA", "pre")),
+               ref + c(1, NA, 2)*3600)
+
+  ref <- ymd_hms(rep(c("2022-10-30 00:00:00", "2022-03-27 00:00:00"), each = 3), tz = "Europe/Amsterdam")
+  expect_equal(time_add(ref, hours = rep(1:3, 2), roll_dst = c("NA", "pre")),
+               ref + c(1, 2, 4, 1, NA, 2)*3600)
+  expect_equal(time_add(ref, hours = rep(1:3, 2), minutes = 1:6, roll_dst = c("NA", "pre")),
+               ref + c(1, 2, 4, 1, NA, 2)*3600 + 1:6*60)
+  expect_equal(time_add(ref, hours = rep(1:3, 2), roll_dst = c("NA", "NA")),
+               ref + c(1, NA, 4, 1, NA, 2)*3600)
+  expect_equal(time_add(ref, hours = rep(1:3, 2), minutes = 1:6, roll_dst = c("NA", "NA")),
+               ref + c(1, NA, 4, 1, NA, 2)*3600 + 1:6*60)
+  expect_equal(time_add(ref, hours = rep(1:3, 2), roll_dst = c("pre", "NA")),
+               ref + c(1, NA, 4, 1, 1, 2)*3600)
+  expect_equal(time_add(ref, hours = rep(1:3, 2), minutes = 1:6, roll_dst = c("pre", "NA")),
+               ref + c(1, NA, 4, 1, 1, 2)*3600 + 1:6*60)
+  expect_equal(time_add(ref, hours = rep(1:3, 2), roll_dst = c("post", "NA")),
+               ref + c(1, NA, 4, 1, 2, 2)*3600)
+  expect_equal(time_add(ref, hours = rep(1:3, 2), minutes = 1:6, roll_dst = c("post", "NA")),
+               ref + c(1, NA, 4, 1, 2, 2)*3600 + 1:6*60)
 })

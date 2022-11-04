@@ -1,3 +1,12 @@
+Version 0.1.1
+=============
+
+## Changes
+
+ * Follow vctrs replication rules
+ * Change arguments of `time_add()` and `time_subtract()` to singulars
+ * Build on top of cpp11 instead of Rcpp
+
 Version 0.1.0
 =============
 

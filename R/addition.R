@@ -6,9 +6,11 @@
 ##'
 ##' @param time date-time object
 ##' @param periods string of units to add/subtract (not yet implemented) or a named list
-##'   of the form `list(years = 1, months = 2, ...)`.
-##' @param years,months,weeks,days,hours,minutes,seconds Units to be added to
-##'   `time`. Each unit except for seconds must be expressed as integer values.
+##'   of the form `list(year = 1, month = 2, ...)`.
+##' @param year,month,week,day,hour,minute,second Units to be added to `time`. Units
+##'   except for seconds are converted to integer values. Components are replicated
+##'   according to `vctrs` semantics, i.e vectors must be either of length 1 or same
+##'   length as `time` vector.
 ##' @param roll_month controls how addition of months and years behaves when standard
 ##'   arithmetic rules exceed limits of the resulting date's month. Possible values are
 ##'   "preday", "boundary", "postday", "full" and "NA". See "Details" or
@@ -25,9 +27,10 @@
 ##'
 ##'   For example `roll_dst = c("pre", "NA") indicates that for repeated intervals
 ##'   return the time in the earlier interval and for skipped intervals return NA.
+##' @param ... deprecated
 ##'
 ##' @details Arithmetic operations with multiple period units (years, months etc) are
-##'   applied in decreasing size order, from year to second. Thus `time_add(x, months =
+##'   applied in decreasing size order, from year to second. Thus `time_add(x, month =
 ##'   1, days = 3)` first adds 1 month to `x`, then ads to the resulting date 3 days.
 ##'
 ##' Generally period arithmetic is undefined due to the irregular nature of
@@ -45,7 +48,7 @@
 ##'
 ##' * `boundary` - if rolling over a month boundary occurred due to setting units
 ##' smaller than month, the date is adjusted to the beginning of the month (the
-##' boundary). For example, `2000-01-31 01:02:03 + month = 2000-03-01 00:00:00`.
+##' boundary). For example, `2000-01-31 01:02:03 + 1 month = 2000-03-01 00:00:00`.
 ##'
 ##' * `preday` - roll back to the last valid day of the previous month (pre-boundary
 ##' day) preserving the H, M, S units. For example, `2000-01-31 01:02:03 + 1 month =
@@ -72,53 +75,60 @@
 ##'
 ##' ## Month gap
 ##' x <- as.POSIXct("2000-01-31 01:02:03", tz = "America/Chicago")
-##' time_add(x, months = 1, roll_month = "postday")
-##' time_add(x, months = 1, roll_month = "preday")
-##' time_add(x, months = 1, roll_month = "boundary")
-##' time_add(x, months = 1, roll_month = "full")
-##' time_add(x, months = 1, roll_month = "NA")
-##' time_add(x, months = 1, days = 3,  roll_month = "postday")
-##' time_add(x, months = 1, days = 3,  roll_month = "preday")
-##' time_add(x, months = 1, days = 3,  roll_month = "boundary")
-##' time_add(x, months = 1, days = 3,  roll_month = "full")
-##' time_add(x, months = 1, days = 3,  roll_month = "NA")
+##' time_add(x, month = 1, roll_month = "postday")
+##' time_add(x, month = 1, roll_month = "preday")
+##' time_add(x, month = 1, roll_month = "boundary")
+##' time_add(x, month = 1, roll_month = "full")
+##' time_add(x, month = 1, roll_month = "NA")
+##' time_add(x, month = 1, day = 3,  roll_month = "postday")
+##' time_add(x, month = 1, day = 3,  roll_month = "preday")
+##' time_add(x, month = 1, day = 3,  roll_month = "boundary")
+##' time_add(x, month = 1, day = 3,  roll_month = "full")
+##' time_add(x, month = 1, day = 3,  roll_month = "NA")
 ##'
 ##' ## DST gap
 ##' x <- as.POSIXlt("2010-03-14 01:02:03", tz = "America/Chicago")
-##' time_add(x, hours = 1, minutes = 50, roll_dst = "pre")
-##' time_add(x, hours = 1, minutes = 50, roll_dst = "boundary")
-##' time_add(x, hours = 1, minutes = 50, roll_dst = "post")
+##' time_add(x, hour = 1, minute = 50, roll_dst = "pre")
+##' time_add(x, hour = 1, minute = 50, roll_dst = "boundary")
+##' time_add(x, hour = 1, minute = 50, roll_dst = "post")
 ##' ##' time_add(x, hours = 1, minutes = 50, roll_dst = "NA")
 ##'
 ##' # SUBTRACTION
 ##'
 ##' ## Month gap
 ##' x <- as.POSIXct("2000-03-31 01:02:03", tz = "America/Chicago")
-##' time_subtract(x, months = 1, roll_month = "postday")
-##' time_subtract(x, months = 1, roll_month = "preday")
-##' time_subtract(x, months = 1, roll_month = "boundary")
-##' time_subtract(x, months = 1, roll_month = "full")
-##' time_subtract(x, months = 1, roll_month = "NA")
-##' time_subtract(x, months = 1, days = 0,  roll_month = "postday")
-##' time_subtract(x, months = 1, days = 3,  roll_month = "postday")
-##' time_subtract(x, months = 1, days = 0,  roll_month = "preday")
-##' time_subtract(x, months = 1, days = 3,  roll_month = "preday")
-##' time_subtract(x, months = 1, days = 3,  roll_month = "boundary")
-##' time_subtract(x, months = 1, days = 3,  roll_month = "full")
-##' time_subtract(x, months = 1, days = 3,  roll_month = "NA")
+##' time_subtract(x, month = 1, roll_month = "postday")
+##' time_subtract(x, month = 1, roll_month = "preday")
+##' time_subtract(x, month = 1, roll_month = "boundary")
+##' time_subtract(x, month = 1, roll_month = "full")
+##' time_subtract(x, month = 1, roll_month = "NA")
+##' time_subtract(x, month = 1, day = 0,  roll_month = "postday")
+##' time_subtract(x, month = 1, day = 3,  roll_month = "postday")
+##' time_subtract(x, month = 1, day = 0,  roll_month = "preday")
+##' time_subtract(x, month = 1, day = 3,  roll_month = "preday")
+##' time_subtract(x, month = 1, day = 3,  roll_month = "boundary")
+##' time_subtract(x, month = 1, day = 3,  roll_month = "full")
+##' time_subtract(x, month = 1, day = 3,  roll_month = "NA")
 ##'
 ##' ## DST gap
 ##' y <- as.POSIXlt("2010-03-15 01:02:03", tz = "America/Chicago")
-##' time_subtract(y, hours = 22, minutes = 50, roll_dst = "pre")
-##' time_subtract(y, hours = 22, minutes = 50, roll_dst = "boundary")
-##' time_subtract(y, hours = 22, minutes = 50, roll_dst = "post")
-##' time_subtract(y, hours = 22, minutes = 50, roll_dst = "NA")
+##' time_subtract(y, hour = 22, minute = 50, roll_dst = "pre")
+##' time_subtract(y, hour = 22, minute = 50, roll_dst = "boundary")
+##' time_subtract(y, hour = 22, minute = 50, roll_dst = "post")
+##' time_subtract(y, hour = 22, minute = 50, roll_dst = "NA")
 ##' @export
 time_add <- function(time, periods = NULL,
-                     years = NULL, months = NULL, weeks = NULL, days = NULL,
-                     hours = NULL, minutes = NULL, seconds = NULL,
+                     year = NULL, month = NULL, week = NULL, day = NULL,
+                     hour = NULL, minute = NULL, second = NULL,
                      roll_month = "preday",
-                     roll_dst = c("post", "pre")) {
+                     roll_dst = c("post", "pre"),
+                     ...) {
+  ## temporary workaround to allow for plurals
+  dots <- list(...)
+  if (length(dots) > 0) {
+    names(dots) <- sub("s$", "", names(dots))
+    periods <- c(periods, dots)
+  }
 
   if (length(time) == 0L)
     return(time)
@@ -130,24 +140,27 @@ time_add <- function(time, periods = NULL,
       stop("character periods are not implemented yet")
   }
 
-  argperiods <- list(years = years, months = months, weeks = weeks, days = days,
-                     hours = hours, minutes = minutes, seconds = seconds)
-  for (nm in names(argperiods)) {
-    if (!is.null(argperiods[[nm]]))
+  prds <- list(year = year, month = month, week = week, day = day,
+               hour = hour, minute = minute, second = second)
+  periods <- as.list(periods)
+  for (nm in names(prds)) {
+    if (!is.null(prds[[nm]]))
       if (is.null(periods[[nm]]))
-        periods[[nm]] <- argperiods[[nm]]
+        periods[[nm]] <- prds[[nm]]
       else
-        periods[[nm]] <- periods[[nm]] + argperiods[[nm]]
+        periods[[nm]] <- periods[[nm]] + prds[[nm]]
   }
-  periods <- normalize_units_length(periods)
+  periods <- periods[!vapply(periods, is.null, TRUE)]
 
   if (is.POSIXct(time)) {
+    storage.mode(time) <- "double"
     C_time_add(time, periods, roll_month, roll_dst)
   } else if (is.Date(time)) {
     out <- date2posixct(time)
-    attr(out, "tzone") <- "UTC"
     out <- C_time_add(out, periods, roll_month, roll_dst)
-    if (is.null(hours) && is.null(minutes) && is.null(seconds)) {
+    if (is.null(periods[["hour"]]) &&
+        is.null(periods[["minute"]]) &&
+        is.null(periods[["second"]])) {
       out <- as.Date(out, tz = "UTC")
     }
     out
@@ -161,12 +174,20 @@ time_add <- function(time, periods = NULL,
 ##' @rdname time_add
 ##' @export
 time_subtract <- function(time, periods = NULL,
-                          years = NULL, months = NULL, weeks = NULL, days = NULL,
-                          hours = NULL, minutes = NULL, seconds = NULL,
+                          year = NULL, month = NULL, week = NULL, day = NULL,
+                          hour = NULL, minute = NULL, second = NULL,
                           roll_month = "preday",
-                          roll_dst = c("pre", "post")) {
+                          roll_dst = c("pre", "post"),
+                          ...) {
   if (length(time) == 0L)
     return(time)
+
+  ## temporary workaround to allow for plurals
+  dots <- list(...)
+  if (length(dots) > 0) {
+    names(dots) <- sub("s$", "", names(dots))
+    periods <- c(periods, dots)
+  }
 
   if (is.null(periods)) {
     periods <- list()
@@ -177,16 +198,16 @@ time_subtract <- function(time, periods = NULL,
   for (nm in names(periods))
     periods[[nm]] <- -periods[[nm]]
 
-  argperiods <- list(years = years, months = months, weeks = weeks, days = days,
-                     hours = hours, minutes = minutes, seconds = seconds)
-  for (nm in names(argperiods)) {
-    if (!is.null(argperiods[[nm]]))
+  prds <- list(year = year, month = month, week = week, day = day,
+                     hour = hour, minute = minute, second = second)
+  for (nm in names(prds)) {
+    if (!is.null(prds[[nm]]))
       if (is.null(periods[[nm]]))
-        periods[[nm]] <- -argperiods[[nm]]
+        periods[[nm]] <- -prds[[nm]]
       else
-        periods[[nm]] <- periods[[nm]] - argperiods[[nm]]
+        periods[[nm]] <- periods[[nm]] - prds[[nm]]
   }
-  periods <- normalize_units_length(periods)
+  periods <- periods[!vapply(periods, is.null, TRUE)]
 
   time_add(time, periods, roll_month = roll_month, roll_dst = roll_dst)
 

@@ -53,23 +53,24 @@ from_posixct <- function(ct, time, force_date = FALSE) {
   } else if (is.POSIXlt(time)) {
     as.POSIXlt.POSIXct(ct)
   } else {
-    unsupported_date_time(ct)
+    ct
   }
 }
 
-normalize_units_length <- function(units) {
-  if (length(units) == 0)
-    return(units)
-  maxlen <- max(unlist(lapply(units, length)))
-  if (maxlen > 1) {
-    for (nm in names(units)) {
-      len <- length(units[[nm]])
-      ## len == 1 is treated at C_level
-      if (len != maxlen && len > 1)
-        units[[nm]] <- rep_len(units[[nm]], maxlen)
+from_posixlt <- function(new, old, force_date = FALSE) {
+  if (is.POSIXlt(old))
+    new
+  else if (is.Date(old)) {
+    if (force_date) {
+      as.Date(new, tz = tz(old))
+    } else {
+      as.POSIXct.POSIXlt(new)
     }
+  } else if (is.POSIXct(old)) {
+    as.POSIXct.POSIXlt(new)
+  } else {
+    as.POSIXct.POSIXlt(new)
   }
-  units
 }
 
 
@@ -93,7 +94,7 @@ standardise_unit_name <- function(x) {
 parse_units <- function(unit) {
 
   if (length(unit) > 1) {
-    warning("Unit argument longer than 1. Taking first element.")
+    warning("'unit' argument has length larger than 1. Using first element.")
     unit <- unit[[1]]
   }
 
@@ -105,9 +106,7 @@ parse_units <- function(unit) {
 
     wp <- which(p > 0)
     if (length(wp) > 1) {
-      ## Fractional units are actually supported but only when it leads to one
-      ## final unit.
-      stop("Cannot't parse heterogenuous or fractional units larger than one minute.")
+      stop("Heterogeneous units are not supported in rounding operations.")
     }
 
     list(n = p[wp], unit = units[wp])
@@ -136,10 +135,9 @@ parse_units <- function(unit) {
   }
 }
 
-
 # Because `as.POSIXct.Date()` always uses local timezone
 date2posixct <- function(x) {
-  out <- unclass(x) * 86400
-  attributes(out) <- list(tzone = "UTC", class = c("POSIXct", "POSIXt"))
-  out
+  structure(unclass(x) * 86400,
+            tzone = "UTC",
+            class = c("POSIXct", "POSIXt"))
 }
