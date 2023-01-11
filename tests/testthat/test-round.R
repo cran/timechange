@@ -697,3 +697,48 @@ test_that("rounding works for dates < 1970", {
   expect_equal(time_round(ymd_hms("1958-01-31 09:59:59 UTC"), "month"),
                ymd("1958-02-01", tz = "UTC"))
 })
+
+
+test_that("rounding works with custom origin", {
+  x <- ymd_hms(c("2010-10-01 01:00:01", "2010-11-02 02:00:01"), tz = "America/New_York")
+  expect_equal(time_floor(x, "3000a", origin = time_floor(x, "day")),
+               ymd_hms(c("2010-10-01 00:50:00", "2010-11-02 01:40:00"), tz = "America/New_York"))
+  expect_equal(time_ceiling(x, "3000a", origin = time_floor(x, "day")),
+               ymd_hms(c("2010-10-01 01:40:00", "2010-11-02 02:30:00"), tz = "America/New_York"))
+  expect_equal(time_floor(x, "3000a", origin = time_floor(x, "month")),
+               ymd_hms(c("2010-10-01 00:50:00", "2010-11-02 01:50:00"), tz = "America/New_York"))
+  expect_equal(time_ceiling(x, "3000a", origin = time_floor(x, "month")),
+               ymd_hms(c("2010-10-01 01:40:00", "2010-11-02 02:40:00"), tz = "America/New_York"))
+  expect_equal(time_ceiling(x, "50AM", origin = time_floor(x, "month")),
+               ymd_hms(c("2010-10-01 01:40:00", "2010-11-02 02:40:00"), tz = "America/New_York"))
+  expect_equal(time_ceiling(x, "50AM", origin = time_floor(x, "month")),
+               time_ceiling(x, "50amins", origin = time_floor(x, "month")))
+  expect_equal(time_ceiling(x, "30amins", origin = time_floor(x, "month")),
+               time_ceiling(x, ".5ahours", origin = time_floor(x, "month")))
+  expect_equal(time_round(x, "3000a", origin = time_floor(x, "month")),
+               ymd_hms(c("2010-10-01 00:50:00", "2010-11-02 01:50:00"), tz = "America/New_York"))
+  expect_equal(time_round(x, "3000a", origin = time_floor(x, "month")),
+               ymd_hms(c("2010-10-01 00:50:00", "2010-11-02 01:50:00"), tz = "America/New_York"))
+})
+
+test_that("rounding with custom origin respects change_on_boundary", {
+  x <- ymd_hms(c("2010-10-01 01:40:00", "2010-11-02 02:30:00"), tz = "America/New_York")
+  expect_equal(time_ceiling(x, "3000a", change_on_boundary = FALSE, origin = time_floor(x, "day")),
+               ymd_hms(c("2010-10-01 01:40:00", "2010-11-02 02:30:00"), tz = "America/New_York"))
+  expect_equal(time_ceiling(x, "50amins", change_on_boundary = TRUE, origin = time_floor(x, "day")),
+               ymd_hms(c("2010-10-01 02:30:00", "2010-11-02 03:20:00"), tz = "America/New_York"))
+})
+
+
+test_that("tzone attributes of Dates is preserved", {
+  #23
+  d <- ymd("2020-01-01")
+  tzone <- "America/New_York"
+  attr(d, "tzone") <- tzone
+  expect_is(time_floor(d, "month"), "Date")
+  expect_is(time_floor(d, "hour"), "POSIXct")
+  expect_identical(time_floor(d, "month"), structure(ymd("2020-01-01"), tzone = tzone))
+  expect_identical(time_floor(d, "hour"), ymd("2020-01-01", tz = tzone))
+  expect_identical(time_ceiling(d, "hour"), ymd_hms("2020-01-01 01:00:00", tz = tzone))
+  expect_identical(time_ceiling(d, "hour", change_on_boundary = FALSE), ymd_hms("2020-01-01 00:00:00", tz = tzone))
+})

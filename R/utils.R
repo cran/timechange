@@ -12,7 +12,17 @@ unsupported_date_time <- function(x) {
 date_to_posixct <- function(date, tz = "UTC") {
   utc <- .POSIXct(unclass(date) * 86400, tz = "UTC")
   if (tz == "UTC") utc
-  else time_force_tz(utc, tz)
+  else C_force_tz(utc, tz, c("boundary", "post"))
+}
+
+posixct_to_date <- function(x) {
+  tz <- tz(x)
+  if (tz == "UTC") {
+    structure(floor(unclass(x)/86400), class = "Date", tzone = NULL)
+  } else {
+    x <- C_force_tz(x, "UTC", c("boundary", "post"))
+    structure(floor(unclass(x)/86400), class = "Date", tzone = tz)
+  }
 }
 
 tz <- function(x) {
@@ -33,7 +43,7 @@ to_posixct <- function(time) {
     storage.mode(time) <- "double"
     time
   } else if (is.Date(time))
-    date_to_posixct(time)
+    date_to_posixct(time, tz(time))
   else if (is.POSIXlt(time)) {
     as.POSIXct.POSIXlt(time, tz = tz(time))
   } else {
@@ -46,7 +56,7 @@ from_posixct <- function(ct, time, force_date = FALSE) {
     ct
   else if (is.Date(time)) {
     if (force_date) {
-      as.Date(ct, tz = tz(time))
+      posixct_to_date(ct)
     } else {
       ct
     }
@@ -62,7 +72,7 @@ from_posixlt <- function(new, old, force_date = FALSE) {
     new
   else if (is.Date(old)) {
     if (force_date) {
-      as.Date(new, tz = tz(old))
+      as.Date.POSIXlt(new, tz = tz(old))
     } else {
       as.POSIXct.POSIXlt(new)
     }
@@ -73,71 +83,11 @@ from_posixlt <- function(new, old, force_date = FALSE) {
   }
 }
 
-
-## utilities copied from lubridate
-
 standardise_unit_name <- function(x) {
-  dates <- c("second", "minute", "hour", "day", "week", "month", "year",
-             ## these ones are used for rounding only
-             "asecond", "bimonth", "quarter", "halfyear", "season")
-  y <- gsub("(.)s$", "\\1", x)
-  y <- substr(y, 1, 3)
-  res <- dates[pmatch(y, dates)]
-  if (any(is.na(res))) {
-    stop("Invalid unit name: ", paste(x[is.na(res)], collapse = ", "),
-         call. = FALSE)
-  }
-  res
+  parse_unit(x)$unit
 }
 
-## return list(n=nr_units, unit="unit_name")
-parse_units <- function(unit) {
-
-  if (length(unit) > 1) {
-    warning("'unit' argument has length larger than 1. Using first element.")
-    unit <- unit[[1]]
-  }
-
-  p <- .Call(C_parse_period, as.character(unit))
-
-  if (!is.na(p[[1]])) {
-
-    units <- c("second", "minute", "hour", "day", "week", "month", "year")
-
-    wp <- which(p > 0)
-    if (length(wp) > 1) {
-      stop("Heterogeneous units are not supported in rounding operations.")
-    }
-
-    list(n = p[wp], unit = units[wp])
-
-  } else {
-    ## allow for bimonth, halfyear, quarter, season and asecond
-
-    m <- regexpr(" *(?<n>[0-9.,]+)? *(?<unit>[^ \t\n]+)", unit[[1]], perl = T)
-    if (m > 0) {
-      ## should always match
-      nms <- attr(m, "capture.names")
-      nms <- nms[nzchar(nms)]
-      start <- attr(m, "capture.start")
-      end <- start + attr(m, "capture.length") - 1L
-      n <- if (end[[1]] >= start[[1]]) {
-             as.numeric(substring(unit, start[[1]], end[[1]]))
-           } else {
-             1
-           }
-      unit <- substring(unit, start[[2]], end[[2]])
-      list(n = n, unit = unit)
-    } else {
-      stop(sprintf("Invalid unit specification '%s'", unit))
-    }
-
-  }
-}
-
-# Because `as.POSIXct.Date()` always uses local timezone
-date2posixct <- function(x) {
-  structure(unclass(x) * 86400,
-            tzone = "UTC",
-            class = c("POSIXct", "POSIXt"))
+# @return list(n=nr_units, unit="unit-name")
+parse_unit <- function(unit) {
+  .Call(C_parse_unit, as.character(unit))
 }

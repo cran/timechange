@@ -23,7 +23,8 @@ inline double ceil_multi_unit1(double x, double n) noexcept {
 }
 
 enum class Unit {YEAR, HALFYEAR, QUARTER, SEASON, BIMONTH, MONTH,
-  WEEK, DAY, HOUR, MINUTE, SECOND, ASECOND};
+                 WEEK, DAY, HOUR, MINUTE, SECOND,
+                 AHOUR, AMINUTE, ASECOND};
 
 void check_fractional_unit(const double N, const char * unit_str) {
   int_fast64_t fN = floor_to_int64(N);
@@ -43,6 +44,10 @@ std::pair<Unit,double> adjust_rounding_unit(const Unit unit, double N) {
   switch (unit) {
    case Unit::ASECOND:
      return std::make_pair(Unit::ASECOND, N);
+   case Unit::AMINUTE:
+     return std::make_pair(Unit::ASECOND, N*60);
+   case Unit::AHOUR:
+     return std::make_pair(Unit::ASECOND, N*3600);
    case Unit::SECOND:
      if (N > 60) Rf_error("Rounding unit for seconds larger than 60");
      return std::make_pair(Unit::SECOND, N);
@@ -63,7 +68,8 @@ std::pair<Unit,double> adjust_rounding_unit(const Unit unit, double N) {
      return std::make_pair(Unit::DAY, N);
    case Unit::SEASON:
      if (N != 1)
-       Rf_error("Rounding with fractional or multi-unit seasons not supporeted");
+       Rf_error("Rounding with fractional or multi-unit seasons not supported");
+     /* [[fallthrough]]; // cpp++17 extension */
    case Unit::HALFYEAR:
    case Unit::BIMONTH:
    case Unit::QUARTER:
@@ -87,6 +93,8 @@ std::pair<Unit,double> adjust_rounding_unit(const Unit unit, double N) {
 
 Unit name2unit(std::string unit_name) {
   if (unit_name == "asecond") return Unit::ASECOND;
+  if (unit_name == "aminute") return Unit::AMINUTE;
+  if (unit_name == "ahour") return Unit::AHOUR;
   if (unit_name == "second") return Unit::SECOND;
   if (unit_name == "minute") return Unit::MINUTE;
   if (unit_name == "hour") return Unit::HOUR;
@@ -139,7 +147,8 @@ cpp11::writable::doubles C_time_ceiling(const cpp11::doubles dt,
                                         const std::string unit_name,
                                         const double nunits,
                                         const int week_start,
-                                        const bool change_on_boundary) {
+                                        const bool change_on_boundary,
+                                        const cpp11::doubles origin) {
 
   Unit unit = name2unit(unit_name);
   std::string tz_name = tz_from_tzone_attr(dt);
@@ -149,6 +158,12 @@ cpp11::writable::doubles C_time_ceiling(const cpp11::doubles dt,
   size_t n = dt.size();
   cpp11::writable::doubles out(n);
   init_posixct(out, tz_name.c_str());
+
+  bool loop_origin = origin.size() != 1;
+  if (loop_origin && origin.size() != dt.size()) {
+    Rf_error("`origin` length (%ld) must be either 1 or the same as the length of the input date-time (%ld)\n",
+             origin.size(), dt.size());
+  }
 
   auto UN = adjust_rounding_unit(unit, nunits);
   double N = UN.second;
@@ -165,10 +180,14 @@ cpp11::writable::doubles C_time_ceiling(const cpp11::doubles dt,
     cctz::civil_second cs = cctz::convert(tp, tz);
 
     switch(UN.first) {
+     case Unit::AHOUR:
+     case Unit::AMINUTE:
      case Unit::ASECOND : {
-       // aseconds are duration in seconds: fractional nunits and nunits > 60 are supported
-       double posix = ceil_multi_unit(dsecs, nunits);
-       if (check_boundary && (posix - nunits) == dsecs)
+       // Absolute seconds are duration in seconds. Rounding is performed with respect
+       // with the origin. Thus, fractional nunits and units > 60 are supported.
+       double orig = loop_origin ? origin[i] : origin[0];
+       double posix = orig + ceil_multi_unit(dsecs - orig, N);
+       if (check_boundary && (posix - N) == dsecs)
          out[i] = dsecs;
        else
          out[i] = posix;
@@ -249,7 +268,8 @@ cpp11::writable::doubles C_time_ceiling(const cpp11::doubles dt,
 cpp11::writable::doubles C_time_floor(const cpp11::doubles dt,
                                       const std::string unit_name,
                                       const double nunits,
-                                      const int week_start) {
+                                      const int week_start,
+                                      const cpp11::doubles origin) {
 
   Unit unit = name2unit(unit_name);
   std::string tz_name = tz_from_tzone_attr(dt);
@@ -259,6 +279,12 @@ cpp11::writable::doubles C_time_floor(const cpp11::doubles dt,
   size_t n = dt.size();
   cpp11::writable::doubles out(n);
   init_posixct(out, tz_name.c_str());
+
+  bool loop_origin = origin.size() != 1;
+  if (loop_origin && origin.size() != dt.size()) {
+    Rf_error("`origin` length (%ld) must be either 1 or the same as the length of the input date-time (%ld)\n",
+             origin.size(), dt.size());
+  }
 
   auto UN = adjust_rounding_unit(unit, nunits);
   double N = UN.second;
@@ -274,9 +300,12 @@ cpp11::writable::doubles C_time_floor(const cpp11::doubles dt,
     cctz::civil_second cs = cctz::convert(tp, tz);
 
     switch(UN.first) {
-     case Unit::ASECOND : {
-       // absolute seconds: rounding from origin. No restrictions on units.
-       out[i] = floor_multi_unit(dsecs, nunits);
+     case Unit::AHOUR:
+     case Unit::AMINUTE:
+     case Unit::ASECOND: {
+       // Absolute seconds rounding from the origin. No restrictions on units.
+       double orig = loop_origin ? origin[i] : origin[0];
+       out[i] =  orig + floor_multi_unit(dsecs - orig, N);
        break;
      }
      case Unit::SECOND : {

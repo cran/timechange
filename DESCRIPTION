@@ -1,6 +1,6 @@
 Package: timechange
 Title: Efficient Manipulation of Date-Times
-Version: 0.1.1
+Version: 0.2.0
 Authors@R: c(person("Vitalie", "Spinu", email = "spinuvit@gmail.com", role = c("aut", "cre")),
              person("Google Inc.", role = c("ctb", "cph")))
 Description: Efficient routines for manipulation of date-time objects while
@@ -14,7 +14,7 @@ Depends: R (>= 3.3)
 License: GPL-3
 Encoding: UTF-8
 LinkingTo: cpp11 (>= 0.2.7)
-Suggests: testthat, knitr
+Suggests: testthat (>= 0.7.1.99), knitr
 SystemRequirements: A system with zoneinfo data (e.g.
         /usr/share/zoneinfo) as well as a recent-enough C++11 compiler
         (such as g++-4.8 or later). On Windows the zoneinfo included
@@ -23,9 +23,9 @@ BugReports: https://github.com/vspinu/timechange/issues
 URL: https://github.com/vspinu/timechange/
 RoxygenNote: 7.2.1
 NeedsCompilation: yes
-Packaged: 2022-11-03 15:35:39 UTC; vspinu
+Packaged: 2023-01-11 17:55:58 UTC; vspinu
 Author: Vitalie Spinu [aut, cre],
   Google Inc. [ctb, cph]
 Maintainer: Vitalie Spinu <spinuvit@gmail.com>
 Repository: CRAN
-Date/Publication: 2022-11-04 15:30:02 UTC
+Date/Publication: 2023-01-11 18:20:02 UTC

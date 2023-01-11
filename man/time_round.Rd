@@ -9,20 +9,23 @@
 time_round(
   time,
   unit = "second",
-  week_start = getOption("timechange.week_start", 1)
+  week_start = getOption("timechange.week_start", 1),
+  origin = unix_origin
 )
 
 time_floor(
   time,
   unit = "seconds",
-  week_start = getOption("timechange.week_start", 1)
+  week_start = getOption("timechange.week_start", 1),
+  origin = unix_origin
 )
 
 time_ceiling(
   time,
   unit = "seconds",
   change_on_boundary = inherits(time, "Date"),
-  week_start = getOption("timechange.week_start", 1)
+  week_start = getOption("timechange.week_start", 1),
+  origin = unix_origin
 )
 }
 \arguments{
@@ -30,12 +33,12 @@ time_ceiling(
 
 \item{unit}{a character string specifying a time unit or a multiple of a unit. Valid
 base periods for civil time rounding are \code{second}, \code{minute}, \code{hour}, \code{day}, \code{week},
-\code{month}, \code{bimonth}, \code{quarter}, \code{season}, \code{halfyear} and \code{year}. The only unit for
-absolute time rounding is \code{asecond}. Other absolute units can be achieved with
-multiples of \code{asecond} ("60a", "3600a" etc). See "Details" and examples. Arbitrary
-unique English abbreviations are allowed. One letter abbreviations follow
-\code{strptime} formats "y", "m", "d", "M", "H", "S". Multi-unit rounding of weeks is
-currently not supported.
+\code{month}, \code{bimonth}, \code{quarter}, \code{season}, \code{halfyear} and \code{year}. The only units for
+absolute time rounding are \code{asecond}, \code{aminute} and \code{ahour}. Other absolute units
+can be achieved with multiples of \code{asecond} (e.g. "24ah"). See "Details" and
+examples. Arbitrary unique English abbreviations are allowed. One letter
+abbreviations follow \code{strptime} formats "y", "m", "d", "M", "H", "S". Multi-unit
+rounding of weeks is currently not supported.
 
 Rounding for a unit is performed from the parent's unit origin. For example when
 rounding to seconds origin is start of the minute. When rounding to days, origin is
@@ -50,6 +53,10 @@ child units only the integer part is used for computation. For example .7days =
 
 \item{week_start}{When unit is \code{weeks}, this is the first day of the week. Defaults
 to 1 (Monday).}
+
+\item{origin}{Origin with respect to which to perform the rounding operation. For
+absolute units only. Can be a vector of the same length as the input \code{time}
+vector. Defaults to the Unix origin "1970-01-01 UTC".}
 
 \item{change_on_boundary}{If NULL (the default) don't change instants on the boundary
 (\code{time_ceiling(ymd_hms('2000-01-01 00:00:00'))} is \verb{2000-01-01 00:00:00}), but
@@ -75,11 +82,11 @@ by civil time irregularities like DST. One important characteristic of civil
 time rounding is that floor (ceiling) does not produce civil times that are
 bigger (smaller) than the rounded civil time.
 
-Absolute time rounding (with \code{aseconds}) is done on the absolute time (number
-of seconds since origin), Thus, rounding of \code{aseconds} allows for fractional
-seconds and multi-units larger than 60. See examples of rounding around DST
-transition where rounding in civil time does not give same result as rounding
-with the corresponding \verb{X aseconds}.
+Absolute time rounding (with \code{aseconds}, \code{aminutes} and \code{ahours}) is done on the
+absolute time (number of seconds since origin), thus, allowing for fractional seconds
+and arbitrary multi-units. See examples of rounding around DST transition where
+rounding in civil time does not give the same result as rounding with the
+corresponding \verb{X aseconds}.
 
 Please note that absolute rounding to fractions smaller than 1ms will result
 to large precision errors due to the floating point representation of the
@@ -148,6 +155,7 @@ time_floor(x, "second")
 time_floor(x, "minute")
 time_floor(x, "M")
 time_floor(x, "hour")
+time_floor(x, ".2 ahour")
 time_floor(x, "day")
 time_floor(x, "week")
 time_floor(x, "m")
@@ -164,6 +172,7 @@ time_ceiling(x, "second")
 time_ceiling(x, "minute")
 time_ceiling(x, "5 mins")
 time_ceiling(x, "hour")
+time_ceiling(x, ".2 ahour")
 time_ceiling(x, "day")
 time_ceiling(x, "week")
 time_ceiling(x, "month")
@@ -190,17 +199,14 @@ x
 time_ceiling(x, "hour") # "2014-11-02 02:00:00 EST"
 time_ceiling(x, "minute")
 time_ceiling(x, "sec")
-difftime(time_ceiling(x, "s"), x)
-time_ceiling(x, "1a") # "2014-11-02 01:00:00 EST"
-difftime(time_ceiling(x, "a"), x)
+time_ceiling(x, "1ahour") # "2014-11-02 01:00:00 EST"
+time_ceiling(x, "1asec")
 
-# "2014-11-02 01:00:00.5 EST" after 1h backroll at 2AM
+# "2014-11-02 01:00:00.5 EST" .5s after 1h backroll at 2AM
 x <- .POSIXct(1414908000.5, tz = "America/New_York")
 x
 time_floor(x, "hour") # "2014-11-02 01:00:00 EST"
-difftime(time_floor(x, "hour"), x)
-time_floor(x, "3600a") # "2014-11-02 01:00:00 EST"  - 25m
-difftime(time_floor(x, "a"), x)
+time_floor(x, "ahour") # "2014-11-02 01:00:00 EST"
 
 ## behavior on the boundary when rounding multi-units
 
@@ -225,6 +231,17 @@ time_ceiling(x, "4h") # "2010-11-26 00:00:00"
 time_ceiling(x, "15d") # "2010-12-01 00:00:00"
 time_ceiling(x, "15d") # "2010-12-01 00:00:00"
 time_ceiling(x, "6m") # "2011-01-01 00:00:00"
+
+
+## custom origin
+x <- as.POSIXct(c("2010-10-01 01:00:01", "2010-11-02 02:00:01"), tz = "America/New_York")
+# 50 minutes from the day or month start
+time_floor(x, "50amin")
+time_floor(x, "50amin", origin = time_floor(x, "day"))
+time_floor(x, "50amin", origin = time_floor(x, "month"))
+time_ceiling(x, "50amin")
+time_ceiling(x, "50amin", origin = time_floor(x, "day"))
+time_ceiling(x, "50amin", origin = time_floor(x, "month"))
 
 }
 \seealso{
