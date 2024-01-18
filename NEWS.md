@@ -1,3 +1,16 @@
+Version 0.3.0
+=============
+
+### Bug fixes
+
+ - [lubridate#1122](https://github.com/tidyverse/lubridate/issues/1122) Implement force_tz fallback for GMT on system where GMT is missing in zoneinfo.
+ - [lubridate#1114](https://github.com/tidyverse/lubridate/issues/1114) Fix rounding of infinite times
+ - Fix %ld compile printf compiler warning
+
+### Breaking Changes
+
+ - For consistency reasons `time_round()` no longer fallbacks on `round.POSIXct()`. This affects only rounding on repeated DST transitions. By default `timechange` rounding operates on clock time, but `round.POSIXct()` operates on absolute time. For old behavior use absolute units (`asecs`, `amins`, `ahours`, etc).
+
 Version 0.2.0
 =============
 

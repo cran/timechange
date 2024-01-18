@@ -1,4 +1,5 @@
 
+#include "R_ext/Arith.h"
 #include "R_ext/Print.h"
 #include "common.h"
 #include "cpp11/doubles.hpp"
@@ -161,8 +162,8 @@ cpp11::writable::doubles C_time_ceiling(const cpp11::doubles dt,
 
   bool loop_origin = origin.size() != 1;
   if (loop_origin && origin.size() != dt.size()) {
-    Rf_error("`origin` length (%ld) must be either 1 or the same as the length of the input date-time (%ld)\n",
-             origin.size(), dt.size());
+    Rf_error("`origin` length (%lld) must be either 1 or the same as the length of the input date-time (%lld)\n",
+             static_cast<long long>(origin.size()), static_cast<long long>(dt.size()));
   }
 
   auto UN = adjust_rounding_unit(unit, nunits);
@@ -171,10 +172,11 @@ cpp11::writable::doubles C_time_ceiling(const cpp11::doubles dt,
 
   for (size_t i = 0; i < n; i++) {
     double dsecs = dt[i];
+    if (dsecs == R_PosInf || dsecs == R_NegInf) { out[i] = dsecs; continue; }
     int_fast64_t secs = floor_to_int64(dsecs);
+    if (secs == NA_INT64) { out[i] = NA_REAL; continue; }
     double rem = dsecs - secs;
     bool check_boundary = rem == 0 && !change_on_boundary;
-    if (secs == NA_INT64) { out[i] = NA_REAL; continue; }
     sys_seconds ss(secs);
     time_point tp(ss);
     cctz::civil_second cs = cctz::convert(tp, tz);
@@ -282,8 +284,8 @@ cpp11::writable::doubles C_time_floor(const cpp11::doubles dt,
 
   bool loop_origin = origin.size() != 1;
   if (loop_origin && origin.size() != dt.size()) {
-    Rf_error("`origin` length (%ld) must be either 1 or the same as the length of the input date-time (%ld)\n",
-             origin.size(), dt.size());
+    Rf_error("`origin` length (%lld) must be either 1 or the same as the length of the input date-time (%lld)\n",
+             static_cast<long long>(origin.size()), static_cast<long long>(dt.size()));
   }
 
   auto UN = adjust_rounding_unit(unit, nunits);
@@ -293,6 +295,7 @@ cpp11::writable::doubles C_time_floor(const cpp11::doubles dt,
   for (size_t i = 0; i < n; i++) {
 
     double dsecs = dt[i];
+    if (dsecs == R_PosInf || dsecs == R_NegInf) { out[i] = dsecs; continue; }
     int_fast64_t isecs = floor_to_int64(dsecs);
     if (isecs == NA_INT64) { out[i] = NA_REAL; continue; }
     sys_seconds ss(isecs);
@@ -313,7 +316,7 @@ cpp11::writable::doubles C_time_floor(const cpp11::doubles dt,
        double ds = floor_multi_unit(cs.second() + rem, N);
        int_fast64_t is = static_cast<int_fast64_t>(ds);
        rem = ds - is;
-       /* Rprintf("dsec:%f isec%f rem:%f ds:%f is:%ld\n", dsecs, isecs, ds, is); */
+       /* Rprintf("dsec:%f isec%f rem:%f ds:%f is:%lld\n", dsecs, isecs, ds, is); */
        cctz::civil_second ct = cctz::civil_second(cctz::civil_minute(cs)) + is;
        out[i] = ct2posix4floor(ct, tz, tp, cs, rem);
        break;
