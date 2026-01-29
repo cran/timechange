@@ -554,3 +554,103 @@ test_that("tzone attributes of Dates is preserved", {
   expect_identical(time_update(d, month = 2), structure(ymd("2020-02-01"), tzone = tzone))
   expect_identical(time_update(d, hour = 1), ymd_hms("2020-01-01 01:00:00", tz = tzone))
 })
+
+
+test_that("NaN updates work correctly",  {
+  d <- ymd("2020-01-01")
+  expect_true(is.na(time_update(d, mday = NA)))
+  expect_true(is.na(time_update(d, mday = NaN)))
+  expect_equal(time_update(d, mday = c(2, NA)), c(ymd("2020-01-02",  NA)))
+  expect_equal(time_update(d, mday = c(2, NaN)), c(ymd("2020-01-02",  NA)))
+  expect_equal(time_add(d, day = c(2, NaN)), c(ymd("2020-01-03",  NA)))
+
+  x <- ymd("2020-01-01", tz = "UTC")
+  expect_true(is.na(time_update(x, mday = NA)))
+  expect_true(is.na(time_update(x, mday = NaN)))
+  expect_equal(time_update(x, mday = c(2, NA)), ymd(c("2020-01-02",  NA), tz = "UTC"))
+  expect_equal(time_update(x, mday = c(2, NaN)), ymd(c("2020-01-02",  NA), tz = "UTC"))
+  expect_equal(time_add(x, day = c(2, NaN)), ymd(c("2020-01-03",  NA), tz = "UTC"))
+})
+
+
+test_that("Fractional updates error",  {
+  d <- ymd("2020-01-01")
+  expect_error(time_update(d, mday = 3.3), "must be integer-like")
+  expect_error(time_add(d, day = 3.3), "must be integer-like")
+})
+
+
+test_that("Non-finite numbers propagates correctly in updates",  {
+  # https://github.com/vspinu/timechange/issues/29
+  time_add(ymd("2023-01-01"),  days=Inf)
+
+  # wday
+  expect_equal(time_update(ymd("2023-01-01"),  wday=NaN), .Date(NaN))
+  expect_equal(time_update(ymd("2023-01-01"),  wday=NA), .Date(NaN))
+  expect_equal(time_update(ymd("2023-01-01"),  wday=Inf), .Date(Inf))
+  expect_equal(time_update(ymd("2023-01-08"),  wday=c(2, NaN, Inf, -Inf)),
+               .Date(c(ymd("2023-01-03"), NaN, Inf, -Inf)))
+
+  # mday
+  expect_equal(time_update(ymd("2023-01-01"),  mday=NaN), .Date(NaN))
+  expect_equal(time_add(ymd("2023-01-01"),  days=NaN), .Date(NaN))
+  expect_equal(time_update(ymd("2023-01-01"),  mday=NA), .Date(NaN))
+  expect_equal(time_add(ymd("2023-01-01"),  days=NA), .Date(NaN))
+  expect_equal(time_update(ymd("2023-01-01"),  mday=Inf), .Date(Inf))
+  expect_equal(time_add(ymd("2023-01-01"),  days=Inf), .Date(Inf))
+  expect_equal(time_add(ymd("2023-01-01"),  days=-Inf), .Date(-Inf))
+  expect_equal(time_add(ymd("2023-01-01"),  days=c(1, NaN, Inf, -Inf)),
+               .Date(c(ymd("2023-01-02"), NaN, Inf, -Inf)))
+  expect_equal(time_update(ymd("2023-01-01"),  mday=c(2, NaN, Inf, -Inf)),
+               .Date(c(ymd("2023-01-02"), NaN, Inf, -Inf)))
+
+  # hour
+  expect_equal(time_update(ymd("2023-01-01"),  hour=NaN), .POSIXct(NaN, tz = "UTC"))
+  expect_equal(time_add(ymd("2023-01-01"),  hours=NaN), .POSIXct(NaN, tz = "UTC"))
+  expect_equal(time_update(ymd("2023-01-01"),  hour=NA), .POSIXct(NaN, tz = "UTC"))
+  expect_equal(time_add(ymd("2023-01-01"),  hours=NA), .POSIXct(NaN, tz = "UTC"))
+  expect_equal(time_update(ymd("2023-01-01"),  hour=Inf), .POSIXct(Inf, tz = "UTC"))
+  expect_equal(time_add(ymd("2023-01-01"),  hours=Inf), .POSIXct(Inf, tz = "UTC"))
+  expect_equal(time_add(ymd("2023-01-01"),  hours=-Inf), .POSIXct(-Inf, tz = "UTC"))
+  expect_equal(time_add(ymd("2023-01-01"),  hours=c(1, NaN, Inf, -Inf)),
+               .POSIXct(c(ymd_hms("2023-01-01 01:00:00"), NaN, Inf, -Inf), tz = "UTC"))
+  expect_equal(time_update(ymd("2023-01-01"),  hour=c(1, NaN, Inf, -Inf)),
+               .POSIXct(c(ymd_hms("2023-01-01 01:00:00"), NaN, Inf, -Inf), tz = "UTC"))
+
+
+  # minute
+  expect_equal(time_update(ymd("2023-01-01"),  minute=NaN), .POSIXct(NaN, tz = "UTC"))
+  expect_equal(time_add(ymd("2023-01-01"),  minutes=NaN), .POSIXct(NaN, tz = "UTC"))
+  expect_equal(time_update(ymd("2023-01-01"),  minute=NA), .POSIXct(NaN, tz = "UTC"))
+  expect_equal(time_add(ymd("2023-01-01"),  minutes=NA), .POSIXct(NaN, tz = "UTC"))
+  expect_equal(time_update(ymd("2023-01-01"),  minute=Inf), .POSIXct(Inf, tz = "UTC"))
+  expect_equal(time_add(ymd("2023-01-01"),  minutes=Inf), .POSIXct(Inf, tz = "UTC"))
+  expect_equal(time_add(ymd("2023-01-01"),  minutes=-Inf), .POSIXct(-Inf, tz = "UTC"))
+  expect_equal(time_add(ymd("2023-01-01"),  minutes=c(1, NaN, Inf, -Inf)),
+               .POSIXct(c(ymd_hms("2023-01-01 00:01:00"), NaN, Inf, -Inf), tz = "UTC"))
+  expect_equal(time_update(ymd("2023-01-01"),  minute=c(1, NaN, Inf, -Inf)),
+               .POSIXct(c(ymd_hms("2023-01-01 00:01:00"), NaN, Inf, -Inf), tz = "UTC"))
+
+  # seconds
+  expect_equal(time_update(ymd("2023-01-01"),  second=NaN), .POSIXct(NaN, tz = "UTC"))
+  expect_equal(time_add(ymd("2023-01-01"),  seconds=NaN), .POSIXct(NaN, tz = "UTC"))
+  expect_equal(time_update(ymd("2023-01-01"),  second=NA), .POSIXct(NaN, tz = "UTC"))
+  expect_equal(time_add(ymd("2023-01-01"),  seconds=NA), .POSIXct(NaN, tz = "UTC"))
+  expect_equal(time_update(ymd("2023-01-01"),  second=Inf), .POSIXct(Inf, tz = "UTC"))
+  expect_equal(time_add(ymd("2023-01-01"),  seconds=Inf), .POSIXct(Inf, tz = "UTC"))
+  expect_equal(time_add(ymd("2023-01-01"),  seconds=-Inf), .POSIXct(-Inf, tz = "UTC"))
+  expect_equal(time_add(ymd("2023-01-01"),  seconds=c(1, NaN, Inf, -Inf)),
+               .POSIXct(c(ymd_hms("2023-01-01 00:00:01"), NaN, Inf, -Inf), tz = "UTC"))
+  expect_equal(time_update(ymd("2023-01-01"),  second=c(1, NaN, Inf, -Inf)),
+               .POSIXct(c(ymd_hms("2023-01-01 00:00:01"), NaN, Inf, -Inf), tz = "UTC"))
+
+  # days,  hours,  minutes, seconds
+  expect_equal(time_add(ymd("2023-01-01"),  hours = 3, seconds=c(1, NaN, Inf, -Inf)),
+               .POSIXct(c(ymd_hms("2023-01-01 03:00:01"), NaN, Inf, -Inf), tz = "UTC"))
+  expect_equal(time_update(ymd("2023-01-01"),
+                           hour=c(1, NaN, Inf, -Inf),
+                           minute = c(1, 2, 3, 4),
+                           second = c(1, 2, 3, 4)),
+               .POSIXct(c(ymd_hms("2023-01-01 01:01:01"), NaN, Inf, -Inf), tz = "UTC"))
+
+})

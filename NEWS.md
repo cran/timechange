@@ -1,3 +1,12 @@
+Version 0.4.0
+=============
+
+### Bug Fixes
+
+ - [#29](https://github.com/vspinu/timechange/issues/29) Propagate +-Inf components in updates and arithmetics
+ - [#33](https://github.com/vspinu/timechange/issues/33) Allow NaN in updates
+
+
 Version 0.3.0
 =============
 
